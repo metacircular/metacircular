@@ -592,7 +592,8 @@ For reference, these services are operational on the platform:
 |---------|---------|------|---------|
 | MCIAS | v1.8.0 | (separate) | Identity and access |
 | Metacrypt | v1.1.0 | rift | Cryptographic service, PKI/CA |
-| MC-Proxy | v1.1.0 | rift | TLS proxy and router |
+| MC-Proxy | v1.2.1 | rift | TLS proxy and router |
 | MCR | v1.2.0 | rift | Container registry |
 | MCNS | v1.1.0 | rift | Authoritative DNS |
-| MCP | v0.3.0 | rift | Control plane agent |
+| MCDoc | v0.1.0 | rift | Documentation server |
+| MCP | v0.4.0 | rift | Control plane agent |
