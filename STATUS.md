@@ -1,12 +1,13 @@
 # Metacircular Platform Status
 
-Last updated: 2026-03-25
+Last updated: 2026-03-26
 
 ## Platform Overview
 
 One node operational (**rift**), running core infrastructure services as
 containers fronted by MC-Proxy. MCIAS runs separately (not on rift).
-MCP and full MCNS are not yet built.
+Bootstrap phases 0–4 complete (MCIAS, Metacrypt, MC-Proxy, MCR all
+operational). MCP and full MCNS are not yet built.
 
 ## Service Status
 
@@ -15,7 +16,7 @@ MCP and full MCNS are not yet built.
 | MCIAS | v1.7.0 | Maintenance | Yes | (separate) |
 | Metacrypt | untagged | Testing | Yes | rift |
 | MC-Proxy | untagged | Maintenance | Yes | rift |
-| MCR | untagged | Ready to deploy | No | — |
+| MCR | untagged | Production | Yes | rift |
 | MCAT | untagged | Complete | Unknown | — |
 | MCDSL | v0.1.0 | Stable | N/A (library) | — |
 | MCNS | untagged | Precursor | Yes | rift |
@@ -60,13 +61,13 @@ MCP and full MCNS are not yet built.
 
 ### MCR — Container Registry
 
-- **Version:** Untagged. Phase 13 (deployment artifacts) complete.
-- **Phase:** Ready to deploy. Implementation complete, deployment artifacts
-  written, next step is first deploy to rift.
-- **Deployment:** Not yet deployed. DNS record and MC-Proxy routes are
-  pre-configured on rift.
-- **Recent work:** Dockerfile fixes, server wiring, OCI route mounting,
-  deployment artifact creation.
+- **Version:** Untagged. All implementation phases complete.
+- **Phase:** Production. Deployed on rift, serving container images.
+- **Deployment:** Running on rift as two containers (mcr API + mcr-web),
+  fronted by MC-Proxy on ports 443 (web, L7), 8443 (API, L4), and
+  9443 (gRPC, L4). Metacrypt is already pulling images from MCR.
+- **Recent work:** First production deploy, Dockerfile fixes, server wiring,
+  OCI route mounting, deployment artifact creation.
 - **Artifacts:** systemd units (service + web + backup timer), Dockerfiles
   (API + web), Docker Compose (rift), install script, rift config.
 
