@@ -15,7 +15,8 @@ Metacircular is a multi-service personal infrastructure platform. This root repo
 | `mc-proxy/` | TLS proxy and router — L4 passthrough or L7 terminating, PROXY protocol, firewall | Go |
 | `mcr/` | OCI container registry — integrated with MCIAS for auth and policy-based push/pull | Go |
 | `mcat/` | MCIAS login policy tester — lightweight web app to test and audit login policies | Go |
-| `mcdsl/` | Standard library — shared packages for auth, db, config, TLS servers, CSRF, snapshots | Go |
+| `mcdsl/` | Standard library — shared packages for auth, db, config, HTTP/gRPC servers, CSRF, snapshots | Go |
+| `mcns/` | Networking service — CoreDNS precursor serving internal DNS zones until full MCNS is built | CoreDNS |
 | `ca/` | PKI infrastructure and secrets for dev/test (not source code, gitignored) | — |
 
 Each subproject has its own `CLAUDE.md`, `ARCHITECTURE.md`, `Makefile`, and `go.mod`. When working in a subproject, read its own CLAUDE.md first.
@@ -29,6 +30,7 @@ mcias (standalone — no MCIAS dependency)
   ├── metacrypt (uses MCIAS for auth)
   ├── mc-proxy (uses MCIAS for admin auth)
   ├── mcr (uses MCIAS for auth + policy)
+  ├── mcns (will use MCIAS for auth; CoreDNS precursor for now)
   └── mcat (tests MCIAS login policies)
 ```
 

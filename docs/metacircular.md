@@ -50,8 +50,9 @@ the spec disagree, one of them has a bug.
 
 Metacircular infrastructure is built from six core components, plus a shared
 standard library (**MCDSL**) that provides the common patterns all services
-depend on (auth integration, database setup, config loading, TLS server
-bootstrapping, CSRF, snapshots):
+depend on (auth integration, database setup, config loading, HTTP/gRPC server
+bootstrapping, CSRF, web session management, health checks, snapshots, and
+service directory archiving):
 
 - **MCIAS** — Identity and access. The root of trust for all other services.
   Handles authentication, token issuance, role management, and login policy
@@ -220,15 +221,18 @@ HashiCorp Vault.
   support. This is how every service in the platform gets its TLS
   certificates.
 
-- **SSH CA.** (Planned.) SSH certificate signing for host and user
-  certificates, replacing static SSH key management.
+- **SSH CA.** SSH certificate signing for host and user certificates,
+  replacing static SSH key management. Signing profiles, Key Revocation List
+  (KRL) support, gRPC/REST APIs, and web UI.
 
-- **Transit encryption.** (Planned.) Encrypt and decrypt data without exposing
-  keys to the caller. Envelope encryption for services that need to protect
+- **Transit encryption.** Encrypt and decrypt data without exposing keys to
+  the caller. Symmetric encryption with versioned key management, signing,
+  and HMAC operations. Envelope encryption for services that need to protect
   data at rest without managing their own key material.
 
-- **User-to-user encryption.** (Planned.) End-to-end encryption between users,
-  with key management handled by Metacrypt.
+- **User-to-user encryption.** End-to-end encryption between users, with key
+  management handled by Metacrypt. ECDH key exchange with AES-256-GCM
+  encryption.
 
 **Seal/unseal model:** Metacrypt starts sealed. An operator provides a password
 which derives (via Argon2id) a key-wrapping key, which decrypts the master
@@ -250,8 +254,8 @@ core.
 operations on which engine mounts. Priority-based evaluation, default deny,
 admin bypass. See Metacrypt's `POLICY.md` for the full model.
 
-**Status:** Implemented. CA engine complete with ACME support. SSH CA, transit,
-and user-to-user engines planned.
+**Status:** Implemented. All four engine types complete — CA (with ACME
+support), SSH CA, transit encryption, and user-to-user encryption.
 
 ---
 
@@ -281,7 +285,7 @@ serves the container images that MCP deploys across the platform.
 is scheduled, MCP tells the node's agent which image to pull and where to get
 it. MCR sits behind an MC-Proxy instance for TLS routing.
 
-**Status:** Implemented. Phase 12 (web UI) complete.
+**Status:** Implemented. Phase 13 (deployment artifacts) complete.
 
 ---
 
@@ -370,7 +374,9 @@ services can use stable DNS names in their configs (e.g.,
 `mcias.svc.mcp.metacircular.net` in `[mcias] server_url`) that survive
 migration without config changes.
 
-**Status:** Not yet implemented.
+**Status:** Not yet implemented. A CoreDNS precursor currently serves the
+internal zones (`svc.mcp.metacircular.net` and `mcp.metacircular.net`) as an
+interim solution until the full MCNS service is built.
 
 ---
 
