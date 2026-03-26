@@ -1,0 +1,12 @@
+# infrastructure / secrets
+/ca
+
+# project directories: these are separate git repos
+/mcat
+/mcias
+/mc-proxy
+/mcr
+/metacrypt
+/mcdsl
+/mcns
+
