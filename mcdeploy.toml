@@ -1,0 +1,79 @@
+workspace = "/home/kyle/src/metacircular"
+registry = "mcr.svc.mcp.metacircular.net:8443"
+
+[mcdsl]
+path = "mcdsl"
+
+# --- Services ---
+
+[[services]]
+name = "mc-proxy"
+path = "mc-proxy"
+images = ["mc-proxy"]
+uses_mcdsl = true
+[services.dockerfiles]
+mc-proxy = "Dockerfile"
+
+[[services]]
+name = "metacrypt"
+path = "metacrypt"
+images = ["metacrypt", "metacrypt-web"]
+uses_mcdsl = false
+[services.dockerfiles]
+metacrypt = "Dockerfile.api"
+metacrypt-web = "Dockerfile.web"
+
+[[services]]
+name = "mcr"
+path = "mcr"
+images = ["mcr", "mcr-web"]
+uses_mcdsl = true
+[services.dockerfiles]
+mcr = "Dockerfile.api"
+mcr-web = "Dockerfile.web"
+
+# --- Nodes ---
+
+[nodes.rift]
+host = "rift"
+user = "kyle"
+
+[nodes.rift.containers.mc-proxy]
+image = "mc-proxy"
+network = "host"
+volumes = ["/srv/mc-proxy:/srv/mc-proxy"]
+restart = "unless-stopped"
+
+[nodes.rift.containers.metacrypt]
+image = "metacrypt"
+network = "docker_default"
+user = "0:0"
+volumes = ["/srv/metacrypt:/srv/metacrypt"]
+ports = ["127.0.0.1:18443:8443", "127.0.0.1:19443:9443"]
+restart = "unless-stopped"
+
+[nodes.rift.containers.metacrypt-web]
+image = "metacrypt-web"
+network = "docker_default"
+user = "0:0"
+volumes = ["/srv/metacrypt:/srv/metacrypt"]
+ports = ["127.0.0.1:18080:8080"]
+restart = "unless-stopped"
+cmd = ["server", "--config", "/srv/metacrypt/metacrypt.toml"]
+
+[nodes.rift.containers.mcr]
+image = "mcr"
+network = "docker_default"
+user = "0:0"
+volumes = ["/srv/mcr:/srv/mcr"]
+ports = ["127.0.0.1:28443:8443", "127.0.0.1:29443:9443"]
+restart = "unless-stopped"
+
+[nodes.rift.containers.mcr-web]
+image = "mcr-web"
+network = "docker_default"
+user = "0:0"
+volumes = ["/srv/mcr:/srv/mcr"]
+ports = ["127.0.0.1:28080:8080"]
+restart = "unless-stopped"
+cmd = ["server", "--config", "/srv/mcr/mcr.toml"]

@@ -7,20 +7,21 @@ Last updated: 2026-03-26
 One node operational (**rift**), running core infrastructure services as
 containers fronted by MC-Proxy. MCIAS runs separately (not on rift).
 Bootstrap phases 0–4 complete (MCIAS, Metacrypt, MC-Proxy, MCR all
-operational). MCP and full MCNS are not yet built.
+operational). MCP is in active development; full MCNS is not yet built.
 
 ## Service Status
 
 | Service | Version | SDLC Phase | Deployed | Node |
 |---------|---------|------------|----------|------|
 | MCIAS | v1.7.0 | Maintenance | Yes | (separate) |
-| Metacrypt | untagged | Testing | Yes | rift |
-| MC-Proxy | untagged | Maintenance | Yes | rift |
-| MCR | untagged | Production | Yes | rift |
-| MCAT | untagged | Complete | Unknown | — |
-| MCDSL | v0.1.0 | Stable | N/A (library) | — |
-| MCNS | untagged | Precursor | Yes | rift |
-| MCP | — | Not started | No | — |
+| Metacrypt | v1.0.0 | Production | Yes | rift |
+| MC-Proxy | v1.0.0 | Maintenance | Yes | rift |
+| MCR | v1.0.0 | Production | Yes | rift |
+| MCAT | v1.0.0 | Complete | Unknown | — |
+| MCDSL | v1.0.0 | Stable | N/A (library) | — |
+| MCNS | v0.1.0 | Precursor | Yes | rift |
+| MCP | v0.1.0 | Active dev | No | — |
+| MCDeploy | v0.1.0 | Active dev | N/A (CLI tool) | — |
 
 ## Service Details
 
@@ -38,8 +39,8 @@ operational). MCP and full MCNS are not yet built.
 
 ### Metacrypt — Cryptographic Service Engine
 
-- **Version:** Untagged.
-- **Phase:** Testing. All four engine types implemented (CA, SSH CA, transit,
+- **Version:** v1.0.0.
+- **Phase:** Production. All four engine types implemented (CA, SSH CA, transit,
   user-to-user). Active work on integration test coverage.
 - **Deployment:** Running on rift as a container, fronted by MC-Proxy on
   ports 443 (web, L7), 8443 (API, L4), and 9443 (gRPC, L4).
@@ -50,7 +51,7 @@ operational). MCP and full MCNS are not yet built.
 
 ### MC-Proxy — TLS Proxy and Router
 
-- **Version:** Untagged. Phases 1-8 complete.
+- **Version:** v1.0.0. Phases 1-8 complete.
 - **Phase:** Maintenance. Stable and actively routing traffic on rift.
 - **Deployment:** Running on rift. Fronts Metacrypt, MCR, and sgard on ports
   443, 8443, and 9443. Prometheus metrics on 127.0.0.1:9091.
@@ -61,19 +62,20 @@ operational). MCP and full MCNS are not yet built.
 
 ### MCR — Container Registry
 
-- **Version:** Untagged. All implementation phases complete.
+- **Version:** v1.0.0. All implementation phases complete.
 - **Phase:** Production. Deployed on rift, serving container images.
 - **Deployment:** Running on rift as two containers (mcr API + mcr-web),
   fronted by MC-Proxy on ports 443 (web, L7), 8443 (API, L4), and
   9443 (gRPC, L4). Metacrypt is already pulling images from MCR.
-- **Recent work:** First production deploy, Dockerfile fixes, server wiring,
-  OCI route mounting, deployment artifact creation.
+- **Recent work:** Manifest push bug fix (LastInsertId unreliable after
+  upsert), structured slog error logging in OCI handlers, first production
+  deploy, Dockerfile fixes, server wiring, OCI route mounting.
 - **Artifacts:** systemd units (service + web + backup timer), Dockerfiles
   (API + web), Docker Compose (rift), install script, rift config.
 
 ### MCAT — Login Policy Tester
 
-- **Version:** Untagged.
+- **Version:** v1.0.0.
 - **Phase:** Complete. Diagnostic tool, not core infrastructure.
 - **Deployment:** Available for ad-hoc use. Lightweight tool for testing
   MCIAS login policy rules.
@@ -82,7 +84,7 @@ operational). MCP and full MCNS are not yet built.
 
 ### MCDSL — Standard Library
 
-- **Version:** v0.1.0.
+- **Version:** v1.0.0.
 - **Phase:** Stable. All 9 packages implemented and tested (87 tests). Being
   adopted across the platform.
 - **Deployment:** N/A (Go library, imported by other services).
@@ -93,7 +95,7 @@ operational). MCP and full MCNS are not yet built.
 
 ### MCNS — Networking Service
 
-- **Version:** Untagged.
+- **Version:** v0.1.0.
 - **Phase:** Precursor. CoreDNS instance serving internal zones until the
   full MCNS service is built.
 - **Deployment:** Running on rift via Docker Compose. Serves two zones:
@@ -104,9 +106,27 @@ operational). MCP and full MCNS are not yet built.
 
 ### MCP — Control Plane
 
-- **Phase:** Not started. Design documented in `docs/metacircular.md`.
-- **Blocked by:** Nothing — MCIAS, Metacrypt, MCR, MC-Proxy, and MCNS
-  (precursor) are all available. MCP is the next major project.
+- **Version:** v0.1.0.
+- **Phase:** Active development. Phase 0 (scaffolding) and Phase 1 (core
+  libraries) complete. Phase 2 (agent) and Phase 3 (CLI) underway — P2.1
+  and P3.1 done.
+- **Deployment:** Not yet deployed.
+- **Architecture:** Two components — `mcp` CLI (thin client) and `mcp-agent`
+  (per-node daemon with SQLite, podman management). gRPC-only (no REST).
+- **Recent work:** Core libraries (registry, runtime, servicedef, config,
+  auth), agent skeleton, CLI skeleton with command stubs.
+- **Artifacts:** Design docs (`PROJECT_PLAN_V1.md`, `PROGRESS_V1.md`,
+  `DESIGN_AUDIT.md`).
+
+### MCDeploy — Deployment CLI
+
+- **Version:** v0.1.0.
+- **Phase:** Active development. Tactical bridge tool for deploying services
+  while MCP is being built.
+- **Deployment:** N/A (local CLI tool, not a server).
+- **Recent work:** Initial implementation, Nix flake.
+- **Description:** Single-binary CLI that shells out to podman/ssh/scp/git
+  for build, push, deploy, cert renewal, and status. TOML-configured.
 
 ## Node Inventory
 
@@ -118,7 +138,13 @@ operational). MCP and full MCNS are not yet built.
 
 | Port | Protocol | Services |
 |------|----------|----------|
+| 53 | DNS (LAN + Tailscale) | mcns-coredns |
 | 443 | L7 (TLS termination) | metacrypt-web, mcr-web |
+| 8080 | HTTP (all interfaces) | exod |
 | 8443 | L4 (SNI passthrough) | metacrypt API, mcr API |
+| 9090 | HTTP (all interfaces) | exod |
 | 9443 | L4 (SNI passthrough) | metacrypt gRPC, mcr gRPC, sgard |
 | 9091 | HTTP (loopback) | MC-Proxy Prometheus metrics |
+
+Non-platform services also running on rift: **exod** (ports 8080/9090),
+**sgardd** (port 19473, fronted by MC-Proxy on 9443).
