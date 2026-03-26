@@ -7,7 +7,8 @@ Last updated: 2026-03-26
 One node operational (**rift**), running core infrastructure services as
 containers fronted by MC-Proxy. MCIAS runs separately (not on rift).
 Bootstrap phases 0–4 complete (MCIAS, Metacrypt, MC-Proxy, MCR all
-operational). MCP is in active development; full MCNS is not yet built.
+operational). MCP is deployed and managing all platform containers. Full MCNS is not
+yet built.
 
 ## Service Status
 
@@ -20,7 +21,7 @@ operational). MCP is in active development; full MCNS is not yet built.
 | MCAT | v1.0.0 | Complete | Unknown | — |
 | MCDSL | v1.0.0 | Stable | N/A (library) | — |
 | MCNS | v0.1.0 | Precursor | Yes | rift |
-| MCP | v0.1.0 | Active dev | No | — |
+| MCP | v0.1.0 | Production | Yes | rift |
 | MCDeploy | v0.1.0 | Active dev | N/A (CLI tool) | — |
 
 ## Service Details
@@ -107,16 +108,18 @@ operational). MCP is in active development; full MCNS is not yet built.
 ### MCP — Control Plane
 
 - **Version:** v0.1.0.
-- **Phase:** Active development. Phase 0 (scaffolding) and Phase 1 (core
-  libraries) complete. Phase 2 (agent) and Phase 3 (CLI) underway — P2.1
-  and P3.1 done.
-- **Deployment:** Not yet deployed.
-- **Architecture:** Two components — `mcp` CLI (thin client) and `mcp-agent`
-  (per-node daemon with SQLite, podman management). gRPC-only (no REST).
-- **Recent work:** Core libraries (registry, runtime, servicedef, config,
-  auth), agent skeleton, CLI skeleton with command stubs.
-- **Artifacts:** Design docs (`PROJECT_PLAN_V1.md`, `PROGRESS_V1.md`,
-  `DESIGN_AUDIT.md`).
+- **Phase:** Production. Phases 0-4 complete. Deployed to rift, managing all
+  platform containers.
+- **Deployment:** Running on rift. Agent as systemd service under `mcp` user
+  with rootless podman. Manages metacrypt, mc-proxy, mcr, and mcns containers.
+- **Architecture:** Two components — `mcp` CLI (thin client on vade) and
+  `mcp-agent` (per-node daemon with SQLite registry, podman management,
+  monitoring with drift/flap detection). gRPC-only (no REST).
+- **Recent work:** Full v1 implementation (12 RPCs, 15 CLI commands),
+  deployment to rift, container migration from kyle→mcp user, service
+  definition authoring.
+- **Artifacts:** systemd service (NixOS), TLS cert from Metacrypt, service
+  definition files, design docs.
 
 ### MCDeploy — Deployment CLI
 
