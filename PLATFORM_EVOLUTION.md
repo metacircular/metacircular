@@ -5,7 +5,7 @@ from its current manually-wired state to fully declarative deployment.
 It is a living design document — not a spec, not a commitment, but a
 record of where we are, where we want to be, and what's between.
 
-Last updated: 2026-03-27 (Phase A complete)
+Last updated: 2026-03-27 (Phases A + B complete)
 
 ---
 
@@ -202,18 +202,18 @@ Agent allocates host ports automatically at deploy time:
 - Registry: `component_routes` table with `host_port` tracking
 - Runtime: `Env` field on `ContainerSpec`, `-e` flag generation
 
-#### 3. MCP Agent: mc-proxy Route Registration
+#### 3. MCP Agent: mc-proxy Route Registration — DONE
 
-**Gap**: mc-proxy routes are static TOML. The gRPC admin API exists but
-MCP doesn't use it.
-
-**Work**:
-- Agent calls mc-proxy gRPC API to register/remove routes on
-  deploy/stop.
-- Route registration includes: hostname, backend address (node address
-  + assigned port), mode (l4/l7), TLS cert paths.
-
-**Depends on**: port assignment (#2), mc-proxy route persistence (#5).
+Agent connects to mc-proxy via Unix socket and automatically manages
+routes during deploy and stop:
+- Deploy: after container starts, calls `AddRoute` with hostname,
+  backend (`127.0.0.1:<host_port>`), mode (l4/l7), and TLS cert paths
+- Stop: calls `RemoveRoute` before stopping containers
+- Config: `[mcproxy] socket` and `cert_dir` in agent config
+- Nil-safe: if socket not configured, silently skipped (backward compatible)
+- L7 routes: mc-proxy terminates TLS using certs at `<cert_dir>/<service>.pem`
+- L4 routes: TLS passthrough, backend handles its own TLS
+- Hostnames default to `<service>.svc.mcp.metacircular.net`
 
 #### 4. MCP Agent: TLS Cert Provisioning
 
@@ -271,19 +271,18 @@ needs the account created).
 
 #### 8. MCNS: Record Management API
 
-**Gap**: MCNS is a CoreDNS precursor serving static zone files. There
-is no API for dynamic record management.
+**Gap**: MCNS v1.0.0 has REST + gRPC APIs and SQLite storage, but
+records are currently seeded from migrations (static). The API supports
+CRUD operations but MCP does not yet call it for dynamic registration.
 
 **Work**:
-- MCNS needs an API (REST + gRPC per platform convention) for
-  creating/updating/deleting DNS records.
-- Records are stored in SQLite (replacing or supplementing zone files).
-- MCIAS auth, scoped to allow MCP agent to manage
+- MCP agent calls MCNS API to create/update/delete records on
+  deploy/stop.
+- MCIAS auth scoping to allow MCP agent to manage
   `*.svc.mcp.metacircular.net` records.
 
-**Depends on**: this is the largest gap. MCNS is currently a CoreDNS
-wrapper, not a full service. This may be the right time to build the
-real MCNS.
+**Depends on**: MCNS API exists. Remaining work is MCP integration
+and auth scoping.
 
 #### 9. Application $PORT Convention — DONE
 
@@ -309,9 +308,8 @@ Phase A — Independent groundwork: ✓ COMPLETE
   #5  mc-proxy route persistence ✓ DONE
   #9  $PORT convention in applications ✓ DONE
 
-Phase B — MCP route registration: ← IN PROGRESS
-  #3  Agent registers routes with mc-proxy
-      (depends on #2 + #5 — both done)
+Phase B — MCP route registration: ✓ COMPLETE
+  #3  Agent registers routes with mc-proxy ✓ DONE
 
 Phase C — Automated TLS:
   #7  Metacrypt cert issuance policy
@@ -324,25 +322,21 @@ Phase D — DNS:
       (depends on #8)
 ```
 
-**Phase A is complete.** Services can be deployed with agent-assigned
-ports and `$PORT` env vars. mc-proxy routes must still be registered
-manually via `mcproxyctl` or the gRPC API.
+**Phases A and B are complete.** Services can be deployed with
+agent-assigned ports, `$PORT` env vars, and automatic mc-proxy route
+registration. No more manual port picking, mcproxyctl, or TOML editing.
 
-**Phase B is next.** The agent will call mc-proxy's gRPC API to
-register/remove routes automatically during deploy/stop. This
-eliminates the last manual networking step — no more `mcproxyctl`
-or TOML editing.
-
-After Phase C, cert provisioning is automatic. After Phase D,
-`mcp deploy` is fully declarative.
+The remaining manual steps are TLS cert provisioning (Phase C) and
+DNS registration (Phase D).
 
 ### Immediate Next Steps
 
-1. **Phase B: MCP agent route registration (#3)** — agent connects to
-   mc-proxy via Unix socket, registers routes on deploy, removes on
-   stop. TLS certs are pre-provisioned (Phase C automates this later).
-2. **mcdoc implementation** — fully designed, no platform evolution
-   dependency. Deployable with a manually assigned port today.
+1. **Phase C: Automated TLS** — Metacrypt cert issuance policy for MCP
+   agent, then agent provisions certs automatically during deploy.
+2. **Phase D: DNS** — MCNS record management API integration, then
+   agent registers DNS records during deploy.
+3. **mcdoc implementation** — fully designed, no platform evolution
+   dependency. Deployable now with the new route system.
 
 ---
 
