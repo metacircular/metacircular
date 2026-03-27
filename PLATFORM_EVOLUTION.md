@@ -5,7 +5,7 @@ from its current manually-wired state to fully declarative deployment.
 It is a living design document — not a spec, not a commitment, but a
 record of where we are, where we want to be, and what's between.
 
-Last updated: 2026-03-27 (Phases A + B complete)
+Last updated: 2026-03-27 (Phases A + B + C complete)
 
 ---
 
@@ -181,9 +181,9 @@ about one node, one mc-proxy, or loopback-only backends.
 #### 1. mcdsl: Proper Module Versioning — DONE
 
 mcdsl is already properly versioned and released:
-- Tagged releases: `v0.1.0`, `v1.0.0`, `v1.0.1`
+- Tagged releases: `v0.1.0`, `v1.0.0`, `v1.0.1`, `v1.1.0`, `v1.2.0`
 - All consuming services import by URL with pinned versions
-  (mcr, mcat, mcns, mc-proxy → `v1.0.0`; metacrypt → `v1.0.1`)
+  (all consuming services on `v1.2.0`)
 - No `replace` directives anywhere
 - Docker builds use standard `go mod download`
 - `uses_mcdsl` eliminated from service definitions and docs
@@ -215,18 +215,14 @@ routes during deploy and stop:
 - L4 routes: TLS passthrough, backend handles its own TLS
 - Hostnames default to `<service>.svc.mcp.metacircular.net`
 
-#### 4. MCP Agent: TLS Cert Provisioning
+#### 4. MCP Agent: TLS Cert Provisioning — DONE
 
-**Gap**: certs are manually provisioned and placed on disk. There is no
-automated issuance flow.
-
-**Work**:
-- Agent requests certs from Metacrypt CA via its API.
-- Certs are stored in a standard location
-  (`/srv/mc-proxy/certs/<service>.pem`).
-- Cert renewal is handled automatically before expiry.
-
-**Depends on**: Metacrypt cert issuance policy (#7).
+Agent provisions TLS certificates from Metacrypt CA automatically during
+deploy for L7 routes:
+- ACME client library requests certs from Metacrypt CA via its API
+- Certs stored in `/srv/mc-proxy/certs/<service>.pem`
+- Provisioning happens during deploy before mc-proxy route registration
+- L7 routes get agent-provisioned certs; L4 routes use service-managed TLS
 
 #### 5. mc-proxy: Route Persistence — DONE
 
@@ -254,20 +250,14 @@ mc-proxy routes are fully persisted in SQLite and survive restarts:
 
 **Depends on**: MCNS record management API (#8).
 
-#### 7. Metacrypt: Automated Cert Issuance Policy
+#### 7. Metacrypt: Automated Cert Issuance Policy — DONE
 
-**Gap**: no policy exists for automated cert issuance. The MCP agent
-doesn't have a Metacrypt identity or permissions.
-
-**Work**:
-- MCP agent gets an MCIAS service account.
-- Metacrypt policy allows this account to issue certs scoped to
-  `*.svc.mcp.metacircular.net` (and explicitly listed public
-  hostnames).
-- No wildcard certs — one cert per hostname per service.
-
-**Depends on**: MCIAS service account provisioning (exists today, just
-needs the account created).
+MCP agent has MCIAS credentials and Metacrypt policy for automated cert
+issuance:
+- MCP agent authenticates to Metacrypt with MCIAS service credentials
+- Metacrypt policy allows cert issuance for
+  `*.svc.mcp.metacircular.net`
+- One cert per hostname per service — no wildcard certs
 
 #### 8. MCNS: Record Management API
 
@@ -286,14 +276,14 @@ and auth scoping.
 
 #### 9. Application $PORT Convention — DONE
 
-mcdsl v1.1.0 adds `$PORT` and `$PORT_GRPC` env var support:
+mcdsl v1.2.0 adds `$PORT` and `$PORT_GRPC` env var support:
 - `config.Load` checks `$PORT` → overrides `Server.ListenAddr`
 - `config.Load` checks `$PORT_GRPC` → overrides `Server.GRPCAddr`
 - Takes precedence over TOML and generic env overrides
   (`$MCR_SERVER_LISTEN_ADDR`) — agent-assigned ports are authoritative
 - Handles both `config.Base` embedding (MCR, MCNS, MCAT) and direct
   `ServerConfig` embedding (Metacrypt) via struct tree walking
-- MCR, Metacrypt, MCNS upgraded to mcdsl v1.1.0
+- All consuming services upgraded to mcdsl v1.2.0
 
 ---
 
@@ -311,9 +301,9 @@ Phase A — Independent groundwork: ✓ COMPLETE
 Phase B — MCP route registration: ✓ COMPLETE
   #3  Agent registers routes with mc-proxy ✓ DONE
 
-Phase C — Automated TLS:
-  #7  Metacrypt cert issuance policy
-  #4  Agent provisions certs
+Phase C — Automated TLS: ✓ COMPLETE
+  #7  Metacrypt cert issuance policy ✓ DONE
+  #4  Agent provisions certs ✓ DONE
       (depends on #7)
 
 Phase D — DNS:
@@ -322,20 +312,18 @@ Phase D — DNS:
       (depends on #8)
 ```
 
-**Phases A and B are complete.** Services can be deployed with
-agent-assigned ports, `$PORT` env vars, and automatic mc-proxy route
-registration. No more manual port picking, mcproxyctl, or TOML editing.
+**Phases A, B, and C are complete.** Services can be deployed with
+agent-assigned ports, `$PORT` env vars, automatic mc-proxy route
+registration, and automated TLS cert provisioning from Metacrypt CA.
+No more manual port picking, mcproxyctl, TOML editing, or cert generation.
 
-The remaining manual steps are TLS cert provisioning (Phase C) and
-DNS registration (Phase D).
+The only remaining manual step is DNS registration (Phase D).
 
 ### Immediate Next Steps
 
-1. **Phase C: Automated TLS** — Metacrypt cert issuance policy for MCP
-   agent, then agent provisions certs automatically during deploy.
-2. **Phase D: DNS** — MCNS record management API integration, then
+1. **Phase D: DNS** — MCNS record management API integration, then
    agent registers DNS records during deploy.
-3. **mcdoc implementation** — fully designed, no platform evolution
+2. **mcdoc implementation** — fully designed, no platform evolution
    dependency. Deployable now with the new route system.
 
 ---
