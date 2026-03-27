@@ -17,9 +17,9 @@ deployed on rift, serving authoritative DNS.
 | MCIAS | v1.7.0 | Maintenance | Yes | (separate) |
 | Metacrypt | v1.0.0 | Production | Yes | rift |
 | MC-Proxy | v1.0.0 | Maintenance | Yes | rift |
-| MCR | v1.0.0 | Production | Yes | rift |
+| MCR | v1.1.0 | Production | Yes | rift |
 | MCAT | v1.0.0 | Complete | Unknown | — |
-| MCDSL | v1.0.0 | Stable | N/A (library) | — |
+| MCDSL | v1.1.0 | Stable | N/A (library) | — |
 | MCNS | v1.0.0 | Production | Yes | rift |
 | MCP | v0.1.0 | Production | Yes | rift |
 | MCDeploy | v0.1.0 | Active dev | N/A (CLI tool) | — |
@@ -63,7 +63,7 @@ deployed on rift, serving authoritative DNS.
 
 ### MCR — Container Registry
 
-- **Version:** v1.0.0. All implementation phases complete.
+- **Version:** v1.1.0. All implementation phases complete.
 - **Phase:** Production. Deployed on rift, serving container images.
 - **Deployment:** Running on rift as two containers (mcr API + mcr-web),
   fronted by MC-Proxy on ports 443 (web, L7), 8443 (API, L4), and
@@ -85,14 +85,14 @@ deployed on rift, serving authoritative DNS.
 
 ### MCDSL — Standard Library
 
-- **Version:** v1.0.0.
-- **Phase:** Stable. All 9 packages implemented and tested (87 tests). Being
-  adopted across the platform.
+- **Version:** v1.1.0.
+- **Phase:** Stable. All 9 packages implemented and tested. Being adopted
+  across the platform.
 - **Deployment:** N/A (Go library, imported by other services).
 - **Packages:** auth, db, config, httpserver, grpcserver, csrf, web, health,
   archive.
-- **Adoption:** mcat, mc-proxy, and mcr migrated. metacrypt and mcias
-  pending.
+- **Adoption:** mcat and mc-proxy on v1.0.0. mcr, mcns, and metacrypt on
+  v1.1.0. mcias pending.
 
 ### MCNS — Networking Service
 

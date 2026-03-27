@@ -23,8 +23,9 @@ lives in [docs/metacircular.md](docs/metacircular.md).
 | **Metacrypt** | Cryptographic services — PKI/CA, transit encryption, encrypted secret storage behind a seal/unseal barrier. Issues TLS certificates for the platform. | Implemented |
 | **MCR** | Container registry — OCI-compliant image storage with MCIAS auth and policy-controlled push/pull. | Implemented |
 | **MC-Proxy** | Node ingress — TLS proxy and router. L4 passthrough or L7 terminating (per-route), PROXY protocol, firewall with rate limiting and GeoIP. | Implemented |
-| **MCNS** | Networking — DNS and address management for the platform. | Planned |
-| **MCP** | Control plane — operator-driven deployment, service registry, data transfer, master/agent container lifecycle. | Planned |
+| **MCNS** | Networking — authoritative DNS for internal platform zones, upstream forwarding. | Implemented |
+| **MCP** | Control plane — operator-driven deployment, service registry, data transfer, master/agent container lifecycle. | Implemented |
+| **MCDoc** | Documentation server — renders markdown from Gitea, serves public docs. | In progress |
 
 Shared library: **MCDSL** — standard library for all services (auth, db,
 config, TLS server, CSRF, snapshots).
@@ -63,7 +64,7 @@ workstation) and manages containers via the local runtime. Core infrastructure
                 │  └───────────┘  │      │      │              │
                 │             ┌───▼┐  ┌──▼─┐  ┌─▼──┐  ┌─────┐ │
                 │             │ α  │  │ β  │  │ γ  │  │ MCP │ │
-                │             └────┘  └────┘  └────┘  │Slave│ │
+                │             └────┘  └────┘  └────┘  │Agent│ │
                 │                                     └──┬──┘ │
                 │                                   ┌────▼───┐│
                 │                                   │Container│
@@ -97,8 +98,11 @@ metacircular/
 ├── metacrypt/      Cryptographic service engine
 ├── mcr/            Container registry
 ├── mc-proxy/       TLS proxy and router
+├── mcp/            Control plane (master/agent)
+├── mcns/           DNS server
 ├── mcat/           Login policy tester
 ├── mcdsl/          Standard library (shared packages)
+├── mcdoc/          Documentation server
 ├── ca/             PKI infrastructure (dev/test, not source code)
 └── docs/           Platform-wide documentation
 ```

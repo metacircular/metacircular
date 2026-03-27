@@ -107,10 +107,10 @@ that participates in the Metacircular platform.
                 │   └───────────┘  │      │      │              │
                 │              ┌───▼┐  ┌──▼─┐  ┌─▼──┐  ┌─────┐ │
                 │              │ α  │  │ β  │  │ γ  │  │ MCP │ │
-                │              └────┘  └────┘  └────┘  │Slave│ │
+                │              └────┘  └────┘  └────┘  │Agent│ │
                 │                                      └──┬──┘ │
                 │                                    ┌────▼───┐│
-                │                                    │Docker/ ││
+                │                                    │Podman/ ││
                 │                                    │etc.    ││
                 │                                    └────────┘│
                 └──────────────────────────────────────────────┘
@@ -202,9 +202,10 @@ section with the MCIAS server URL, a `service_name`, and optional `tags`. At
 login time, the service forwards credentials to MCIAS along with this context.
 MCIAS evaluates login policy against the service context, verifies credentials,
 and returns a bearer token. The MCIAS Go client library
-(`git.wntrmute.dev/kyle/mcias/clients/go`) handles this flow.
+(`git.wntrmute.dev/mc/mcias/clients/go`) handles this flow.
 
-**Status:** Implemented. v1.0.0 complete.
+**Status:** Implemented. v1.7.0. Feature-complete with active refinement
+(WebAuthn/FIDO2 passkeys, TOTP 2FA, service-context login policies).
 
 ---
 
@@ -343,7 +344,7 @@ as the name resolution layer for the Metacircular network. Service discovery
 (which services run where) is owned by MCP; MCNS translates those assignments
 into DNS records.
 
-**What it will provide:**
+**What it provides:**
 
 - **Internal DNS.** MCNS is authoritative for the internal zones of the
   Metacircular network. Three zones serve different purposes:
@@ -374,9 +375,10 @@ services can use stable DNS names in their configs (e.g.,
 `mcias.svc.mcp.metacircular.net` in `[mcias] server_url`) that survive
 migration without config changes.
 
-**Status:** Not yet implemented. A CoreDNS precursor currently serves the
-internal zones (`svc.mcp.metacircular.net` and `mcp.metacircular.net`) as an
-interim solution until the full MCNS service is built.
+**Status:** Implemented. v1.0.0. Custom Go DNS server deployed on rift,
+serving two authoritative zones (`svc.mcp.metacircular.net` and
+`mcp.metacircular.net`) plus upstream forwarding. REST + gRPC APIs with
+MCIAS auth. Records stored in SQLite.
 
 ---
 
@@ -387,7 +389,7 @@ deployment model is operator-driven: the user says "deploy service α" and MCP
 handles the rest. MCP Master runs on the operator's workstation; agents run on
 each managed node.
 
-**What it will provide:**
+**What it provides:**
 
 - **Service registry.** MCP is the source of truth for what is running where.
   It tracks every service, which node it's on, and its current state. Other
@@ -422,7 +424,7 @@ each managed node.
 
 - **Container lifecycle.** Start, stop, restart, and update containers on
   nodes. MCP Master issues commands; agents on each node execute them against
-  the local container runtime (Docker, etc.).
+  the local container runtime (rootless Podman).
 
 - **Master/agent architecture.** MCP Master runs on the operator's machine.
   Agents run on every managed node, receiving C2 (command and control) from
@@ -450,7 +452,11 @@ services it depends on.
 can deploy them. The systemd unit files exist as a fallback and for bootstrap —
 the long-term deployment model is MCP-managed containers.
 
-**Status:** Not yet implemented.
+**Status:** Implemented. v0.1.0. Deployed on rift managing all platform
+containers. Two components — `mcp` CLI (operator workstation) and
+`mcp-agent` (per-node daemon with SQLite registry, rootless Podman,
+monitoring with drift/flap detection). gRPC-only (no REST). 12 RPCs,
+15 CLI commands.
 
 ---
 

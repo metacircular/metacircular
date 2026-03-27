@@ -17,7 +17,8 @@ Metacircular is a multi-service personal infrastructure platform. This root repo
 | `mcat/` | MCIAS login policy tester — lightweight web app to test and audit login policies | Go |
 | `mcdsl/` | Standard library — shared packages for auth, db, config, HTTP/gRPC servers, CSRF, snapshots | Go |
 | `mcdoc/` | Documentation server — renders markdown from Gitea, serves public docs via mc-proxy | Go |
-| `mcns/` | Networking service — CoreDNS precursor serving internal DNS zones until full MCNS is built | CoreDNS |
+| `mcp/` | Control plane — operator-driven deployment, service registry, container lifecycle (master/agent) | Go |
+| `mcns/` | Networking service — custom Go DNS server, authoritative for internal zones | Go |
 | `ca/` | PKI infrastructure and secrets for dev/test (not source code, gitignored) | — |
 
 Each subproject has its own `CLAUDE.md`, `ARCHITECTURE.md`, `Makefile`, and `go.mod`. When working in a subproject, read its own CLAUDE.md first.
@@ -32,7 +33,8 @@ mcias (standalone — no MCIAS dependency)
   ├── mc-proxy (uses MCIAS for admin auth)
   ├── mcr (uses MCIAS for auth + policy)
   ├── mcdoc (public, no MCIAS — fetches docs from Gitea)
-  ├── mcns (will use MCIAS for auth; CoreDNS precursor for now)
+  ├── mcp (uses MCIAS for auth; orchestrates deployment and lifecycle)
+  ├── mcns (uses MCIAS for auth; authoritative DNS for internal zones)
   └── mcat (tests MCIAS login policies)
 ```
 

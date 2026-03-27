@@ -140,12 +140,12 @@ but the top-level skeleton is fixed.
 Services hosted on `git.wntrmute.dev` use:
 
 ```
-git.wntrmute.dev/kyle/<service>
+git.wntrmute.dev/mc/<service>
 ```
 
 ### Shared Libraries (mcdsl)
 
-The `mcdsl` module (`git.wntrmute.dev/kyle/mcdsl`) is the platform's
+The `mcdsl` module (`git.wntrmute.dev/mc/mcdsl`) is the platform's
 standard library — shared packages for auth, database, config,
 HTTP/gRPC servers, CSRF, snapshots, and other cross-cutting concerns.
 
@@ -153,13 +153,13 @@ mcdsl is a normal Go module, versioned and tagged per standard SDLC
 conventions. Services import it like any other dependency:
 
 ```go
-import "git.wntrmute.dev/kyle/mcdsl/auth"
+import "git.wntrmute.dev/mc/mcdsl/auth"
 ```
 
 And reference it in `go.mod` with a tagged version:
 
 ```
-require git.wntrmute.dev/kyle/mcdsl v1.2.0
+require git.wntrmute.dev/mc/mcdsl v1.2.0
 ```
 
 **Rules:**
@@ -206,7 +206,7 @@ lint:
 proto:
 	protoc --go_out=. --go_opt=module=<module> \
 		--go-grpc_out=. --go-grpc_opt=module=<module> \
-		proto/<service>/v2/*.proto
+		proto/<service>/v1/*.proto
 
 proto-lint:
 	buf lint
@@ -296,7 +296,7 @@ Access Service). No service maintains its own user database.
 
 - Client sends credentials to the service's `/v1/auth/login` endpoint.
 - The service forwards them to MCIAS via the client library
-  (`git.wntrmute.dev/kyle/mcias/clients/go`).
+  (`git.wntrmute.dev/mc/mcias/clients/go`).
 - On success, MCIAS returns a bearer token. The service returns it to the
   client and optionally sets it as a cookie for the web UI.
 - Subsequent requests include the token via `Authorization: Bearer <token>`
@@ -586,7 +586,7 @@ systemd services. Both paths are first-class.
 
 Multi-stage builds:
 
-1. **Builder**: `golang:1.23-alpine`. Compile with `CGO_ENABLED=0`, strip
+1. **Builder**: `golang:1.25-alpine`. Compile with `CGO_ENABLED=0`, strip
    symbols.
 2. **Runtime**: `alpine:3.21`. Non-root user (`<service>`), minimal attack
    surface.
@@ -1054,7 +1054,8 @@ make proto-lint   # if proto files changed
 
 ### Proto Changes
 
-1. Edit `.proto` files in `proto/<service>/v2/`.
+1. Edit `.proto` files in `proto/<service>/v<N>/` (start at v1; only
+   create v2 for breaking changes).
 2. Run `make proto` to regenerate Go code.
 3. Run `make proto-lint` to check for linting violations and breaking changes.
 4. Update REST routes to match the new/changed RPCs.
