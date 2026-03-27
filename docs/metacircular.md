@@ -48,11 +48,11 @@ the spec disagree, one of them has a bug.
 
 ## High-Level Overview
 
-Metacircular infrastructure is built from six core components, plus a shared
-standard library (**MCDSL**) that provides the common patterns all services
-depend on (auth integration, database setup, config loading, HTTP/gRPC server
-bootstrapping, CSRF, web session management, health checks, snapshots, and
-service directory archiving):
+Metacircular infrastructure is built from six core components and a
+documentation server, plus a shared standard library (**MCDSL**) that provides
+the common patterns all services depend on (auth integration, database setup,
+config loading, HTTP/gRPC server bootstrapping, CSRF, web session management,
+health checks, snapshots, and service directory archiving):
 
 - **MCIAS** — Identity and access. The root of trust for all other services.
   Handles authentication, token issuance, role management, and login policy
@@ -74,6 +74,10 @@ service directory archiving):
 - **MC-Proxy** — Node ingress. A TLS proxy and router that sits on every node,
   accepts outside connections, and routes them to the correct service — either
   as raw TCP passthrough or via TLS-terminating HTTP/2 reverse proxy.
+
+- **MCDoc** — Documentation server. Fetches markdown from Gitea repositories,
+  renders HTML with syntax highlighting, serves a navigable documentation site.
+  Public-facing, no MCIAS authentication required.
 
 These components form a dependency graph rooted at MCIAS:
 
@@ -204,7 +208,7 @@ MCIAS evaluates login policy against the service context, verifies credentials,
 and returns a bearer token. The MCIAS Go client library
 (`git.wntrmute.dev/mc/mcias/clients/go`) handles this flow.
 
-**Status:** Implemented. v1.7.0. Feature-complete with active refinement
+**Status:** Implemented. v1.8.0. Feature-complete with active refinement
 (WebAuthn/FIDO2 passkeys, TOTP 2FA, service-context login policies).
 
 ---
@@ -255,7 +259,7 @@ core.
 operations on which engine mounts. Priority-based evaluation, default deny,
 admin bypass. See Metacrypt's `POLICY.md` for the full model.
 
-**Status:** Implemented. All four engine types complete — CA (with ACME
+**Status:** Implemented. v1.1.0. All four engine types complete — CA (with ACME
 support), SSH CA, transit encryption, and user-to-user encryption.
 
 ---
@@ -286,7 +290,7 @@ serves the container images that MCP deploys across the platform.
 is scheduled, MCP tells the node's agent which image to pull and where to get
 it. MCR sits behind an MC-Proxy instance for TLS routing.
 
-**Status:** Implemented. Phase 13 (deployment artifacts) complete.
+**Status:** Implemented. v1.2.0. All implementation phases complete.
 
 ---
 
@@ -333,7 +337,9 @@ two instances — an edge proxy on a public VPS and an origin proxy on the
 private network, connected over the overlay with PROXY protocol preserving
 client IPs across the hop.
 
-**Status:** Implemented.
+**Status:** Implemented. v1.2.1. Route state persisted in SQLite with
+write-through semantics. gRPC admin API with idempotent AddRoute for runtime
+route management.
 
 ---
 
@@ -375,7 +381,7 @@ services can use stable DNS names in their configs (e.g.,
 `mcias.svc.mcp.metacircular.net` in `[mcias] server_url`) that survive
 migration without config changes.
 
-**Status:** Implemented. v1.0.0. Custom Go DNS server deployed on rift,
+**Status:** Implemented. v1.1.0. Custom Go DNS server deployed on rift,
 serving two authoritative zones (`svc.mcp.metacircular.net` and
 `mcp.metacircular.net`) plus upstream forwarding. REST + gRPC APIs with
 MCIAS auth. Records stored in SQLite.
@@ -452,11 +458,14 @@ services it depends on.
 can deploy them. The systemd unit files exist as a fallback and for bootstrap —
 the long-term deployment model is MCP-managed containers.
 
-**Status:** Implemented. v0.1.0. Deployed on rift managing all platform
-containers. Two components — `mcp` CLI (operator workstation) and
+**Status:** Implemented. v0.4.0. Deployed on rift managing all platform
+containers. Route declarations with automatic port allocation (`$PORT` /
+`$PORT_<NAME>` env vars passed to containers). MC-Proxy route registration
+during deploy and stop. Automated TLS cert provisioning for L7 routes via
+Metacrypt CA (Phase C). Two components — `mcp` CLI (operator workstation) and
 `mcp-agent` (per-node daemon with SQLite registry, rootless Podman,
-monitoring with drift/flap detection). gRPC-only (no REST). 12 RPCs,
-15 CLI commands.
+monitoring with drift/flap detection). gRPC-only (no REST). 12+ RPCs,
+15+ CLI commands.
 
 ---
 
@@ -663,20 +672,22 @@ renew certificates programmatically.
 
 ### How Services Get Certificates Today
 
-Currently, certificates are provisioned through Metacrypt's **REST API or web
-UI** and placed into each service's `/srv/<service>/certs/` directory. This is
-a manual process — the operator issues a certificate, downloads it, and
-deploys the files. The ACME client library exists but is not yet integrated
-into any service.
+For services deployed via MCP with L7 routes, certificates are provisioned
+automatically during deploy — MCP uses the Metacrypt ACME client library to
+obtain certs and transfers them to the node. For other services and during
+bootstrap, certificates are provisioned through Metacrypt's **REST API or web
+UI** and placed into each service's `/srv/<service>/certs/` directory manually.
 
-### How It Will Work With MCP
+### How MCP Automates Certificates
 
-MCP is the natural place to automate certificate provisioning:
+MCP automates certificate provisioning for deploy workflows, with renewal and
+migration automation planned:
 
-- **Initial deploy.** When MCP deploys a new service, it can provision a
-  certificate from Metacrypt (via the ACME client library or the REST API),
-  transfer the cert and key to the node as part of the config push to
-  `/srv/<service>/certs/`, and start the service with valid TLS material.
+- **Initial deploy.** When MCP deploys a new service, it provisions a
+  certificate from Metacrypt (via the ACME client library), transfers the cert
+  and key to the node as part of the config push to `/srv/<service>/certs/`,
+  and starts the service with valid TLS material. For L7 routes, MCP also
+  provisions a TLS certificate for MC-Proxy's termination endpoint.
 
 - **Renewal.** MCP knows what services are running and when their certificates
   expire. It can renew certificates before expiry by re-running the ACME flow
@@ -689,10 +700,8 @@ MCP is the natural place to automate certificate provisioning:
   for the new name.
 
 - **MC-Proxy L7 routes.** MC-Proxy's L7 mode requires certificate/key pairs
-  for TLS termination. MCP (or the operator) can provision these from
-  Metacrypt and push them to MC-Proxy's cert directory. MC-Proxy's
-  architecture doc lists ACME integration and Metacrypt key storage as future
-  work.
+  for TLS termination. MCP provisions these from Metacrypt during deploy and
+  pushes them to the node alongside the route registration.
 
 ### Trust Distribution
 
@@ -793,8 +802,13 @@ Operator workstation (vade)
          │
          ├── Scheduling: select Node C (best fit)
          │
-         ├── Provision TLS certificate from Metacrypt
-         │     (ACME flow or REST API)
+         ├── Port assignment: allocate a free host port for each
+         │     declared route (passed as $PORT / $PORT_<NAME> env vars)
+         │
+         ├── Provision TLS certificate from Metacrypt CA
+         │     (ACME client library) for the service
+         │     — for L7 routes, also provision a cert for MC-Proxy
+         │       TLS termination
          │
          ├── C2 to Node C agent:
          │     1. Create /srv/α/ directory structure
@@ -802,15 +816,15 @@ Operator workstation (vade)
          │     3. Transfer TLS cert+key → /srv/α/certs/
          │     4. Transfer root CA cert → /srv/α/certs/ca.pem
          │     5. Pull image from MCR
-         │     6. Start container
+         │     6. Start container with $PORT / $PORT_<NAME> env vars
+         │
+         ├── Register routes with MC-Proxy
+         │     (gRPC AddRoute for each declared route)
          │
          ├── Update service registry: α → Node C
          │
-         ├── Push DNS update to MCNS:
-         │     α.svc.mcp.metacircular.net → Node C address
-         │
-         └── (Optionally) update MC-Proxy route table
-              if α needs external ingress
+         └── Push DNS update to MCNS:
+               α.svc.mcp.metacircular.net → Node C address
 ```
 
 ### 4. Migration
