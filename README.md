@@ -25,7 +25,8 @@ lives in [docs/metacircular.md](docs/metacircular.md).
 | **MC-Proxy** | Node ingress — TLS proxy and router. L4 passthrough or L7 terminating (per-route), PROXY protocol, firewall with rate limiting and GeoIP. | Implemented |
 | **MCNS** | Networking — authoritative DNS for internal platform zones, upstream forwarding. | Implemented |
 | **MCP** | Control plane — operator-driven deployment, service registry, data transfer, master/agent container lifecycle. | Implemented |
-| **MCDoc** | Documentation server — renders markdown from Gitea, serves public docs. | In progress |
+| **MCDoc** | Documentation server — renders markdown from Gitea, serves public docs. | Implemented |
+| **MCDeploy** | Deployment CLI — single-binary tool for build, push, deploy, cert renewal, and status. Tactical bridge tool while MCP capabilities mature. | Active dev |
 
 Shared library: **MCDSL** — standard library for all services (auth, db,
 config, TLS server, CSRF, snapshots).
@@ -102,6 +103,7 @@ metacircular/
 ├── mcns/           DNS server
 ├── mcat/           Login policy tester
 ├── mcdsl/          Standard library (shared packages)
+├── mcdeploy/       Deployment CLI tool
 ├── mcdoc/          Documentation server
 ├── ca/             PKI infrastructure (dev/test, not source code)
 └── docs/           Platform-wide documentation

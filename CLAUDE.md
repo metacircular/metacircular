@@ -18,8 +18,10 @@ Metacircular is a multi-service personal infrastructure platform. This root repo
 | `mcdsl/` | Standard library — shared packages for auth, db, config, HTTP/gRPC servers, CSRF, snapshots | Go |
 | `mcdoc/` | Documentation server — renders markdown from Gitea, serves public docs via mc-proxy | Go |
 | `mcp/` | Control plane — operator-driven deployment, service registry, container lifecycle (master/agent) | Go |
+| `mcdeploy/` | Deployment CLI — tactical bridge tool for build, push, deploy operations | Go |
 | `mcns/` | Networking service — custom Go DNS server, authoritative for internal zones | Go |
 | `ca/` | PKI infrastructure and secrets for dev/test (not source code, gitignored) | — |
+| `docs/` | Platform-wide documentation (architecture overview, deployment guide) | Markdown |
 
 Each subproject has its own `CLAUDE.md`, `ARCHITECTURE.md`, `Makefile`, and `go.mod`. When working in a subproject, read its own CLAUDE.md first.
 
