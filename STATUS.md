@@ -14,21 +14,21 @@ deployed on rift, serving authoritative DNS.
 
 | Service | Version | SDLC Phase | Deployed | Node |
 |---------|---------|------------|----------|------|
-| MCIAS | v1.7.0 | Maintenance | Yes | (separate) |
-| Metacrypt | v1.0.0 | Production | Yes | rift |
-| MC-Proxy | v1.0.0 | Maintenance | Yes | rift |
-| MCR | v1.1.0 | Production | Yes | rift |
-| MCAT | v1.0.0 | Complete | Unknown | — |
-| MCDSL | v1.1.0 | Stable | N/A (library) | — |
-| MCNS | v1.0.0 | Production | Yes | rift |
-| MCP | v0.1.0 | Production | Yes | rift |
-| MCDeploy | v0.1.0 | Active dev | N/A (CLI tool) | — |
+| MCIAS | v1.8.0 | Maintenance | Yes | (separate) |
+| Metacrypt | v1.1.0 | Production | Yes | rift |
+| MC-Proxy | v1.1.0 | Maintenance | Yes | rift |
+| MCR | v1.2.0 | Production | Yes | rift |
+| MCAT | v1.1.0 | Complete | Unknown | — |
+| MCDSL | v1.2.0 | Stable | N/A (library) | — |
+| MCNS | v1.1.0 | Production | Yes | rift |
+| MCP | v0.3.0 | Production | Yes | rift |
+| MCDeploy | v0.2.0 | Active dev | N/A (CLI tool) | — |
 
 ## Service Details
 
 ### MCIAS — Identity and Access Service
 
-- **Version:** v1.7.0 (client library: clients/go/v0.1.0)
+- **Version:** v1.8.0 (client library: clients/go/v0.2.0)
 - **Phase:** Maintenance. Phases 0-14 complete. Feature-complete with active
   refinement.
 - **Deployment:** Running in production. All other services authenticate
@@ -40,7 +40,7 @@ deployed on rift, serving authoritative DNS.
 
 ### Metacrypt — Cryptographic Service Engine
 
-- **Version:** v1.0.0.
+- **Version:** v1.1.0.
 - **Phase:** Production. All four engine types implemented (CA, SSH CA, transit,
   user-to-user). Active work on integration test coverage.
 - **Deployment:** Running on rift as a container, fronted by MC-Proxy on
@@ -52,7 +52,7 @@ deployed on rift, serving authoritative DNS.
 
 ### MC-Proxy — TLS Proxy and Router
 
-- **Version:** v1.0.0. Phases 1-8 complete.
+- **Version:** v1.1.0. Phases 1-8 complete.
 - **Phase:** Maintenance. Stable and actively routing traffic on rift.
 - **Deployment:** Running on rift. Fronts Metacrypt, MCR, and sgard on ports
   443, 8443, and 9443. Prometheus metrics on 127.0.0.1:9091.
@@ -63,7 +63,7 @@ deployed on rift, serving authoritative DNS.
 
 ### MCR — Container Registry
 
-- **Version:** v1.1.0. All implementation phases complete.
+- **Version:** v1.2.0. All implementation phases complete.
 - **Phase:** Production. Deployed on rift, serving container images.
 - **Deployment:** Running on rift as two containers (mcr API + mcr-web),
   fronted by MC-Proxy on ports 443 (web, L7), 8443 (API, L4), and
@@ -76,7 +76,7 @@ deployed on rift, serving authoritative DNS.
 
 ### MCAT — Login Policy Tester
 
-- **Version:** v1.0.0.
+- **Version:** v1.1.0.
 - **Phase:** Complete. Diagnostic tool, not core infrastructure.
 - **Deployment:** Available for ad-hoc use. Lightweight tool for testing
   MCIAS login policy rules.
@@ -85,18 +85,17 @@ deployed on rift, serving authoritative DNS.
 
 ### MCDSL — Standard Library
 
-- **Version:** v1.1.0.
+- **Version:** v1.2.0.
 - **Phase:** Stable. All 9 packages implemented and tested. Being adopted
   across the platform.
 - **Deployment:** N/A (Go library, imported by other services).
 - **Packages:** auth, db, config, httpserver, grpcserver, csrf, web, health,
   archive.
-- **Adoption:** mcat and mc-proxy on v1.0.0. mcr, mcns, and metacrypt on
-  v1.1.0. mcias pending.
+- **Adoption:** All services except mcias on v1.2.0. mcias pending.
 
 ### MCNS — Networking Service
 
-- **Version:** v1.0.0.
+- **Version:** v1.1.0.
 - **Phase:** Production. Custom Go DNS server replacing CoreDNS precursor.
 - **Deployment:** Running on rift as a container managed by MCP. Serves two
   authoritative zones plus upstream forwarding.
@@ -107,7 +106,7 @@ deployed on rift, serving authoritative DNS.
 
 ### MCP — Control Plane
 
-- **Version:** v0.1.0.
+- **Version:** v0.3.0.
 - **Phase:** Production. Phases 0-4 complete. Deployed to rift, managing all
   platform containers.
 - **Deployment:** Running on rift. Agent as systemd service under `mcp` user
@@ -123,7 +122,7 @@ deployed on rift, serving authoritative DNS.
 
 ### MCDeploy — Deployment CLI
 
-- **Version:** v0.1.0.
+- **Version:** v0.2.0.
 - **Phase:** Active development. Tactical bridge tool for deploying services
   while MCP is being built.
 - **Deployment:** N/A (local CLI tool, not a server).
