@@ -72,6 +72,7 @@ but the top-level skeleton is fixed.
 │   ├── templates/              Go HTML templates
 │   └── static/                 CSS, JS (htmx)
 ├── deploy/
+│   ├── <service>-rift.toml     MCP service definition (reference)
 │   ├── docker/                 Docker Compose configuration
 │   ├── examples/               Example config files
 │   ├── scripts/                Install, backup, migration scripts
@@ -217,6 +218,11 @@ Services expose two synchronized API surfaces:
 - Use `google.protobuf.Timestamp` for all time fields (not RFC 3339 strings).
 - Run `buf lint` and `buf breaking` against master before merging proto
   changes.
+- **Input validation**: gRPC handlers must validate input fields (non-empty
+  required strings, positive IDs, valid enum values) and return
+  `codes.InvalidArgument` with a descriptive message on failure. This mirrors
+  the validation that REST handlers perform and ensures both API surfaces
+  reject bad input consistently.
 
 ### REST (Secondary)
 
@@ -307,6 +313,9 @@ File permissions: `0600`. Created by the service on first run.
   sequentially at startup.
 - Each migration is idempotent — `CREATE TABLE IF NOT EXISTS`,
   `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`.
+- Seed data migrations must use `INSERT OR IGNORE` (not plain `INSERT`)
+  to ensure idempotency when the migration runs against a database that
+  already contains the seed rows.
 - Applied migrations are tracked in a `schema_migrations` table.
 - Never modify a migration that has been deployed. Add a new one.
 
@@ -548,6 +557,20 @@ Multi-stage builds:
 2. **Runtime**: `alpine:3.21`. Non-root user (`<service>`), minimal attack
    surface.
 
+Runtime images MUST include `ca-certificates` (for TLS verification) and
+`tzdata` (for timezone-aware logging and scheduling):
+
+```dockerfile
+RUN apk add --no-cache ca-certificates tzdata \
+    && addgroup -S <service> \
+    && adduser -S -G <service> -h /srv/<service> -s /sbin/nologin <service> \
+    && mkdir -p /srv/<service> && chown <service>:<service> /srv/<service>
+```
+
+The image should declare `VOLUME /srv/<service>` (to document the data
+mount point) and `WORKDIR /srv/<service>` (so relative paths resolve
+correctly).
+
 If the service has separate API and web binaries, use separate Dockerfiles
 (`Dockerfile.api`, `Dockerfile.web`) and a `docker-compose.yml` that wires
 them together with a shared data volume.
@@ -596,6 +619,136 @@ The web UI unit should use `ReadOnlyPaths=/srv/<service>` instead of
 3. Create `/srv/<service>/` directory structure.
 4. Install example config if none exists.
 5. Install systemd units and reload the daemon.
+
+### Deployment with MCP
+
+The Metacircular Control Plane (MCP) is the standard deployment tool for
+container-based services. It manages container lifecycle on target nodes
+using rootless Podman.
+
+#### Service Definition Format
+
+MCP service definitions are TOML files stored at
+`~/.config/mcp/services/<service>.toml` on the operator workstation. Each
+file defines a service with one or more container components:
+
+```toml
+name = "metacrypt"
+node = "rift"
+active = true
+path = "metacrypt"
+
+[build]
+uses_mcdsl = false
+
+[build.images]
+metacrypt = "Dockerfile.api"
+metacrypt-web = "Dockerfile.web"
+
+[[components]]
+name = "api"
+image = "mcr.svc.mcp.metacircular.net:8443/metacrypt:v1.0.0"
+network = "mcpnet"
+user = "0:0"
+restart = "unless-stopped"
+ports = ["127.0.0.1:18443:8443", "127.0.0.1:19443:9443"]
+volumes = ["/srv/metacrypt:/srv/metacrypt"]
+cmd = ["server", "--config", "/srv/metacrypt/metacrypt.toml"]
+```
+
+Top-level fields:
+
+| Field | Purpose |
+|-------|---------|
+| `name` | Service name (matches the project name) |
+| `node` | Target host to deploy to |
+| `active` | Whether MCP should keep this service running |
+| `path` | Source directory relative to the workspace (for builds) |
+
+Build fields:
+
+| Field | Purpose |
+|-------|---------|
+| `build.uses_mcdsl` | Whether the build requires the mcdsl module |
+| `build.images.<name>` | Maps image name to its Dockerfile path |
+
+Component fields:
+
+| Field | Purpose |
+|-------|---------|
+| `name` | Component name within the service (e.g. `api`, `web`) |
+| `image` | Full image reference including MCR registry and version tag |
+| `network` | Podman network to attach to |
+| `user` | Container user:group |
+| `restart` | Restart policy |
+| `ports` | Host-to-container port mappings |
+| `volumes` | Host-to-container volume mounts |
+| `cmd` | Command and arguments passed to the entrypoint |
+
+#### Convention
+
+Projects should include a reference service definition in
+`deploy/<service>-rift.toml` as the canonical deployment example. This
+file is committed to the repository and kept in sync with the actual
+deployment.
+
+#### Key Commands
+
+| Command | Purpose |
+|---------|---------|
+| `mcp build <service>` | Build and push images for a service |
+| `mcp sync` | Push all service definitions to agents; builds missing images if source tree is available |
+| `mcp deploy <service>` | Pull image and (re)create containers |
+| `mcp stop <service>` | Stop running containers |
+| `mcp restart <service>` | Restart containers in place |
+| `mcp ps` | List all managed containers and their status |
+| `mcp status [service]` | Show detailed status for a specific service |
+
+#### Container User Convention
+
+All containers run as `--user 0:0` (root inside the container). Security
+isolation is provided by rootless Podman (the container engine runs as an
+unprivileged host user) combined with systemd hardening on the host. This
+avoids file permission issues with mounted volumes while maintaining a
+strong security boundary at the host level.
+
+#### Image Convention
+
+Container images are pulled from the Metacircular Container Registry (MCR):
+
+```
+mcr.svc.mcp.metacircular.net:8443/<service>:<tag>
+```
+
+Tags follow semver. Service definitions MUST pin an explicit version tag
+(e.g., `v1.1.0`), never `:latest`. This ensures deployments are
+reproducible and `mcp status` shows the actual running version.
+
+#### Build and Release Workflow
+
+The standard workflow for releasing a service:
+
+1. **Tag** the release in git (`git tag -a v1.1.0`).
+2. **Build** the container images (`mcp build <service>`).
+3. **Update** the service definition with the new version tag.
+4. **Sync and deploy** (`mcp sync` or `mcp deploy <service>`).
+
+`mcp build` reads the `[build]` section of the service definition to
+locate Dockerfiles and the source tree. The workspace root is configured
+in `~/.config/mcp/mcp.toml`:
+
+```toml
+[build]
+workspace = "~/src/metacircular"
+```
+
+Each service's `path` field is relative to the workspace. For example,
+`path = "mcr"` resolves to `~/src/metacircular/mcr`.
+
+`mcp sync` checks whether each component's image tag exists in the
+registry. If a tag is missing and the source tree is available, it
+builds and pushes automatically. If the source tree is not available,
+it fails with a clear error directing the operator to build first.
 
 ### TLS
 
