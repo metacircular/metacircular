@@ -7,8 +7,8 @@ Last updated: 2026-03-26
 One node operational (**rift**), running core infrastructure services as
 containers fronted by MC-Proxy. MCIAS runs separately (not on rift).
 Bootstrap phases 0–4 complete (MCIAS, Metacrypt, MC-Proxy, MCR all
-operational). MCP is deployed and managing all platform containers. Full MCNS is not
-yet built.
+operational). MCP is deployed and managing all platform containers. MCNS is
+deployed on rift, serving authoritative DNS.
 
 ## Service Status
 
@@ -20,7 +20,7 @@ yet built.
 | MCR | v1.0.0 | Production | Yes | rift |
 | MCAT | v1.0.0 | Complete | Unknown | — |
 | MCDSL | v1.0.0 | Stable | N/A (library) | — |
-| MCNS | v1.0.0 | Built, pending deploy | No | rift (planned) |
+| MCNS | v1.0.0 | Production | Yes | rift |
 | MCP | v0.1.0 | Production | Yes | rift |
 | MCDeploy | v0.1.0 | Active dev | N/A (CLI tool) | — |
 
@@ -97,14 +97,13 @@ yet built.
 ### MCNS — Networking Service
 
 - **Version:** v1.0.0.
-- **Phase:** Implementation complete, pending deployment. Custom Go DNS
-  server replacing CoreDNS precursor. Authoritative DNS with SQLite-backed
-  zone/record storage and gRPC+REST management API.
-- **Deployment:** Not yet deployed (replacing CoreDNS on rift).
-- **Features:** A, AAAA, CNAME records; CNAME exclusivity; upstream
-  forwarding with caching; MCIAS auth; SOA auto-serial.
-- **Artifacts:** Dockerfile, Docker Compose (rift), example config, proto
-  definitions.
+- **Phase:** Production. Custom Go DNS server replacing CoreDNS precursor.
+- **Deployment:** Running on rift as a container managed by MCP. Serves two
+  authoritative zones plus upstream forwarding.
+- **Recent work:** v1.0.0 implementation (custom Go DNS server), engineering
+  review, deployed to rift replacing CoreDNS.
+- **Artifacts:** Dockerfile, Docker Compose (rift), MCP service definition,
+  systemd units, install script, example config.
 
 ### MCP — Control Plane
 
@@ -142,7 +141,7 @@ yet built.
 
 | Port | Protocol | Services |
 |------|----------|----------|
-| 53 | DNS (LAN + Tailscale) | mcns-coredns |
+| 53 | DNS (LAN + Tailscale) | mcns |
 | 443 | L7 (TLS termination) | metacrypt-web, mcr-web |
 | 8080 | HTTP (all interfaces) | exod |
 | 8443 | L4 (SNI passthrough) | metacrypt API, mcr API |
