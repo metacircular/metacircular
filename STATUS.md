@@ -1,6 +1,6 @@
 # Metacircular Platform Status
 
-Last updated: 2026-03-26
+Last updated: 2026-03-27
 
 ## Platform Overview
 
@@ -16,12 +16,13 @@ deployed on rift, serving authoritative DNS.
 |---------|---------|------------|----------|------|
 | MCIAS | v1.8.0 | Maintenance | Yes | (separate) |
 | Metacrypt | v1.1.0 | Production | Yes | rift |
-| MC-Proxy | v1.1.0 | Maintenance | Yes | rift |
+| MC-Proxy | v1.2.1 | Maintenance | Yes | rift |
 | MCR | v1.2.0 | Production | Yes | rift |
 | MCAT | v1.1.0 | Complete | Unknown | — |
 | MCDSL | v1.2.0 | Stable | N/A (library) | — |
 | MCNS | v1.1.0 | Production | Yes | rift |
-| MCP | v0.3.0 | Production | Yes | rift |
+| MCDoc | v0.1.0 | Production | Yes | rift |
+| MCP | v0.4.0 | Production | Yes | rift |
 | MCDeploy | v0.2.0 | Active dev | N/A (CLI tool) | — |
 
 ## Service Details
@@ -52,12 +53,12 @@ deployed on rift, serving authoritative DNS.
 
 ### MC-Proxy — TLS Proxy and Router
 
-- **Version:** v1.1.0. Phases 1-8 complete.
+- **Version:** v1.2.1.
 - **Phase:** Maintenance. Stable and actively routing traffic on rift.
 - **Deployment:** Running on rift. Fronts Metacrypt, MCR, and sgard on ports
   443, 8443, and 9443. Prometheus metrics on 127.0.0.1:9091.
-- **Recent work:** MCR route additions, Nix flake, L7 backend cert handling,
-  Prometheus metrics, L7 policies.
+- **Recent work:** Route persistence (SQLite), idempotent AddRoute (upsert),
+  golangci-lint v2 compliance, module path migration to mc/ org.
 - **Artifacts:** systemd units (service + backup timer), Docker Compose
   (standard + rift), install and backup scripts, rift config.
 
@@ -104,19 +105,33 @@ deployed on rift, serving authoritative DNS.
 - **Artifacts:** Dockerfile, Docker Compose (rift), MCP service definition,
   systemd units, install script, example config.
 
+### MCDoc — Documentation Server
+
+- **Version:** v0.1.0.
+- **Phase:** Production. Fetches and renders markdown documentation from Gitea.
+- **Deployment:** Running on rift as a container, fronted by MC-Proxy on
+  port 443 (L7).
+- **Recent work:** Initial implementation, Gitea content fetching, goldmark
+  rendering with syntax highlighting, webhook-driven refresh.
+- **Artifacts:** Dockerfile, MCP service definition.
+
 ### MCP — Control Plane
 
-- **Version:** v0.3.0.
-- **Phase:** Production. Phases 0-4 complete. Deployed to rift, managing all
-  platform containers.
+- **Version:** v0.4.0.
+- **Phase:** Production. Phases 0-4 complete. Phase C (automated TLS cert
+  provisioning) implemented. Deployed to rift, managing all platform containers.
 - **Deployment:** Running on rift. Agent as systemd service under `mcp` user
   with rootless podman. Manages metacrypt, mc-proxy, mcr, and mcns containers.
 - **Architecture:** Two components — `mcp` CLI (thin client on vade) and
   `mcp-agent` (per-node daemon with SQLite registry, podman management,
-  monitoring with drift/flap detection). gRPC-only (no REST).
+  monitoring with drift/flap detection, route registration with mc-proxy during
+  deploy/stop, automated TLS cert provisioning for L7 routes via Metacrypt CA).
+  gRPC-only (no REST).
 - **Recent work:** Full v1 implementation (12 RPCs, 15 CLI commands),
   deployment to rift, container migration from kyle→mcp user, service
-  definition authoring.
+  definition authoring. Phase C automated TLS cert provisioning for L7 routes,
+  mc-proxy route registration during deploy, mc-proxy dependency updated to
+  v1.2.0, module path migration.
 - **Artifacts:** systemd service (NixOS), TLS cert from Metacrypt, service
   definition files, design docs.
 
