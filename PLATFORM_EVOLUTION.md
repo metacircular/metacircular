@@ -230,19 +230,20 @@ automated issuance flow.
 
 **Depends on**: Metacrypt cert issuance policy (#7).
 
-#### 5. mc-proxy: Route Persistence
+#### 5. mc-proxy: Route Persistence — DONE
 
-**Gap**: mc-proxy loads routes from TOML on startup. Routes added via
-gRPC are lost on restart.
-
-**Work**:
-- mc-proxy persists gRPC-managed routes in its SQLite database.
-- On startup, mc-proxy loads routes from the database.
+mc-proxy routes are fully persisted in SQLite and survive restarts:
+- SQLite `routes` table stores all listener and route state
+- TOML config seeds the database on first run only (via
+  `store.IsEmpty()` + `store.Seed()`); subsequent starts load from
+  DB (`store.ListListeners()` + `store.ListRoutes()`)
+- gRPC admin API (`AddRoute`/`RemoveRoute`) writes through to both
+  DB and in-memory state
+- `mcproxyctl` CLI provides full route management (add, remove, list)
+- Routes added via gRPC survive mc-proxy restart
 - TOML route config is vestigial — kept only for mc-proxy's own
   bootstrap before MCP is operational. The gRPC API and mcproxyctl
   are the primary route management interfaces going forward.
-
-**Depends on**: nothing (mc-proxy already has SQLite and gRPC API).
 
 #### 6. MCP Agent: DNS Registration
 
@@ -310,7 +311,7 @@ The dependencies form a rough order:
 Phase A — Independent groundwork (parallel):
   #1  mcdsl proper module versioning ✓ DONE
   #2  MCP agent port assignment
-  #5  mc-proxy route persistence
+  #5  mc-proxy route persistence ✓ DONE
   #9  $PORT convention in applications
 
 Phase B — MCP route registration:
@@ -328,8 +329,9 @@ Phase D — DNS:
       (depends on #8)
 ```
 
-Phase A is partially complete. mcdsl is done. The remaining Phase A
-work (#2, #5, #9) can proceed in parallel.
+Phase A is partially complete. mcdsl (#1) and mc-proxy route
+persistence (#5) are done. The remaining Phase A work (#2, #9) can
+proceed in parallel.
 
 After Phase A, services can be deployed with agent-assigned ports
 (manually registered in mc-proxy).
@@ -346,15 +348,12 @@ Each phase is independently useful and deployable.
 
 ### Immediate Next Steps
 
-1. **mc-proxy route persistence (#5)** — mc-proxy already has SQLite
-   and a gRPC API. Persist routes in the database, load on startup.
-   This unblocks Phase B with no external dependencies.
-2. **MCP agent port assignment (#2)** — new service definition parser,
-   port allocation, `$PORT_*` injection. Can develop in parallel with
-   #5.
-3. **$PORT convention (#9)** — small per-service config change. Can
+1. **MCP agent port assignment (#2)** — new service definition parser,
+   port allocation, `$PORT_*` injection. With #5 done, this is the
+   remaining blocker for Phase B.
+2. **$PORT convention (#9)** — small per-service config change. Can
    start incrementally now, but only useful once #2 is deployed.
-4. **mcdoc implementation** — fully designed, no platform evolution
+3. **mcdoc implementation** — fully designed, no platform evolution
    dependency. Deployable with a manually assigned port today.
 
 ---

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "gitea": {
+      "type": "stdio",
+      "command": "/home/kyle/.local/bin/gitea-mcp",
+      "env": {
+        "GITEA_HOST": "https://git.wntrmute.dev",
+        "GITEA_ACCESS_TOKEN": "873c9bf3ef872e11ca8811621dba0d7e3762cad9"
+      }
+    }
+  }
+}
