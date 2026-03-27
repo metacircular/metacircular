@@ -143,6 +143,40 @@ Services hosted on `git.wntrmute.dev` use:
 git.wntrmute.dev/kyle/<service>
 ```
 
+### Shared Libraries (mcdsl)
+
+The `mcdsl` module (`git.wntrmute.dev/kyle/mcdsl`) is the platform's
+standard library — shared packages for auth, database, config,
+HTTP/gRPC servers, CSRF, snapshots, and other cross-cutting concerns.
+
+mcdsl is a normal Go module, versioned and tagged per standard SDLC
+conventions. Services import it like any other dependency:
+
+```go
+import "git.wntrmute.dev/kyle/mcdsl/auth"
+```
+
+And reference it in `go.mod` with a tagged version:
+
+```
+require git.wntrmute.dev/kyle/mcdsl v1.2.0
+```
+
+**Rules:**
+
+- mcdsl follows semver. Breaking changes require a major version bump.
+- Services pin to a specific mcdsl version and upgrade deliberately.
+- `replace` directives in `go.mod` are not permitted in committed code.
+  They are acceptable only during local development when iterating on
+  mcdsl and a consuming service simultaneously — they must be removed
+  before committing.
+- Docker builds must not require the mcdsl source tree to be present.
+  The Go toolchain fetches the tagged module from Gitea like any other
+  dependency.
+- When releasing a new mcdsl version, update consuming services in a
+  follow-up change — not atomically. Each service upgrades on its own
+  schedule.
+
 ---
 
 ## Build System
@@ -635,11 +669,7 @@ file defines a service with one or more container components:
 ```toml
 name = "metacrypt"
 node = "rift"
-active = true
-path = "metacrypt"
-
-[build]
-uses_mcdsl = false
+version = "v1.0.0"
 
 [build.images]
 metacrypt = "Dockerfile.api"
@@ -647,14 +677,38 @@ metacrypt-web = "Dockerfile.web"
 
 [[components]]
 name = "api"
-image = "mcr.svc.mcp.metacircular.net:8443/metacrypt:v1.0.0"
-network = "mcpnet"
-user = "0:0"
-restart = "unless-stopped"
-ports = ["127.0.0.1:18443:8443", "127.0.0.1:19443:9443"]
 volumes = ["/srv/metacrypt:/srv/metacrypt"]
-cmd = ["server", "--config", "/srv/metacrypt/metacrypt.toml"]
+
+[[components.routes]]
+name = "rest"
+port = 8443
+mode = "l4"
+
+[[components.routes]]
+name = "grpc"
+port = 9443
+mode = "l4"
+
+[[components]]
+name = "web"
+volumes = ["/srv/metacrypt:/srv/metacrypt"]
+
+[[components.routes]]
+port = 443
+mode = "l7"
 ```
+
+The service definition is intentionally minimal. Most fields are
+derived from conventions:
+
+- **Image name**: `<service>` for api components, `<service>-<component>`
+  for others. The registry URL comes from global MCP config.
+- **Version**: service-level `version` applies to all components unless
+  overridden per-component.
+- **Volumes**: `/srv/<service>:/srv/<service>` is the default; only
+  declare additional mounts.
+- **Network, user, restart**: agent defaults (`mcpnet`, `0:0`,
+  `unless-stopped`); override only when needed.
 
 Top-level fields:
 
@@ -662,14 +716,14 @@ Top-level fields:
 |-------|---------|
 | `name` | Service name (matches the project name) |
 | `node` | Target host to deploy to |
-| `active` | Whether MCP should keep this service running |
-| `path` | Source directory relative to the workspace (for builds) |
+| `version` | Image version tag (applies to all components) |
+| `active` | Whether MCP should keep this service running (default: true) |
+| `path` | Source directory relative to workspace (default: same as `name`) |
 
 Build fields:
 
 | Field | Purpose |
 |-------|---------|
-| `build.uses_mcdsl` | Whether the build requires the mcdsl module |
 | `build.images.<name>` | Maps image name to its Dockerfile path |
 
 Component fields:
@@ -677,13 +731,19 @@ Component fields:
 | Field | Purpose |
 |-------|---------|
 | `name` | Component name within the service (e.g. `api`, `web`) |
-| `image` | Full image reference including MCR registry and version tag |
-| `network` | Podman network to attach to |
-| `user` | Container user:group |
-| `restart` | Restart policy |
-| `ports` | Host-to-container port mappings |
-| `volumes` | Host-to-container volume mounts |
-| `cmd` | Command and arguments passed to the entrypoint |
+| `image` | Image name override (default: derived from service/component name) |
+| `version` | Version override for this component |
+| `volumes` | Host-to-container volume mounts (in addition to default) |
+| `cmd` | Command override (default: Dockerfile CMD) |
+
+Route fields:
+
+| Field | Purpose |
+|-------|---------|
+| `name` | Route name (used for `$PORT_<NAME>` env var) |
+| `port` | External port on mc-proxy |
+| `mode` | `l4` (TLS passthrough) or `l7` (TLS termination) |
+| `hostname` | Public hostname override (default: `<service>.svc.mcp.metacircular.net`) |
 
 #### Convention
 
