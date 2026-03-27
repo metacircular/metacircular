@@ -810,6 +810,28 @@ registry. If a tag is missing and the source tree is available, it
 builds and pushes automatically. If the source tree is not available,
 it fails with a clear error directing the operator to build first.
 
+### Port Assignment and $PORT Convention
+
+When deployed via MCP, the agent assigns host ports automatically and
+passes them to containers via environment variables:
+
+| Env var | When set | Example |
+|---------|----------|---------|
+| `$PORT` | Component has a single route | `PORT=8913` |
+| `$PORT_<NAME>` | Component has multiple routes | `PORT_REST=8913`, `PORT_GRPC=9217` |
+
+Route names come from the `name` field in `[[components.routes]]`.
+Names are uppercased for the env var (e.g., `name = "rest"` →
+`$PORT_REST`).
+
+Services using mcdsl v1.1.0+ get this automatically — `config.Load`
+checks `$PORT` and `$PORT_GRPC` and overrides `Server.ListenAddr` and
+`Server.GRPCAddr` respectively. These take precedence over TOML values
+and generic env overrides (`$MCR_SERVER_LISTEN_ADDR`).
+
+Services not using mcdsl must check `$PORT` manually in their config
+loading.
+
 ### TLS
 
 - **Minimum TLS version: 1.3.** No exceptions, no fallback cipher suites.

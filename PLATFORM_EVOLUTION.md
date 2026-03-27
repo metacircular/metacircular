@@ -5,7 +5,7 @@ from its current manually-wired state to fully declarative deployment.
 It is a living design document — not a spec, not a commitment, but a
 record of where we are, where we want to be, and what's between.
 
-Last updated: 2026-03-27
+Last updated: 2026-03-27 (Phase A complete)
 
 ---
 
@@ -188,21 +188,19 @@ mcdsl is already properly versioned and released:
 - Docker builds use standard `go mod download`
 - `uses_mcdsl` eliminated from service definitions and docs
 
-#### 2. MCP Agent: Port Assignment
+#### 2. MCP Agent: Port Assignment — DONE
 
-**Gap**: agent doesn't manage host ports. Service definitions specify
-them manually.
-
-**Work**:
-- Agent picks free host ports at deploy time (random + availability
-  check).
-- Agent records assignments in its registry.
-- Agent passes `$PORT` / `$PORT_<NAME>` to containers.
-- Agent releases ports on container stop/removal.
-- New service definition format drops `ports` field, adds
-  `[[components.routes]]`.
-
-**Depends on**: nothing (can be developed standalone).
+Agent allocates host ports automatically at deploy time:
+- Service definitions declare `[[components.routes]]` with name, port,
+  mode, and optional hostname
+- Agent picks random free ports (10000-60000, availability check,
+  mutex-serialized), records assignments in `component_routes` table
+- Containers receive `$PORT` / `$PORT_<NAME>` env vars
+- Backward compatible: old-style `ports` strings still work unchanged
+- Proto: `RouteSpec` message, `routes` + `env` fields on `ComponentSpec`
+- Servicedef: `RouteDef` parsing and validation from TOML
+- Registry: `component_routes` table with `host_port` tracking
+- Runtime: `Env` field on `ContainerSpec`, `-e` flag generation
 
 #### 3. MCP Agent: mc-proxy Route Registration
 
@@ -287,19 +285,16 @@ is no API for dynamic record management.
 wrapper, not a full service. This may be the right time to build the
 real MCNS.
 
-#### 9. Application $PORT Convention
+#### 9. Application $PORT Convention — DONE
 
-**Gap**: applications read listen addresses from their config files.
-They don't check `$PORT` env vars.
-
-**Work**:
-- Each service's config layer checks `$PORT` / `$PORT_<NAME>` and
-  overrides the configured listen address if set.
-- This fits naturally into the existing `$SERVICENAME_*` env override
-  convention — it's just one more env var.
-- Small change per service, but touches every service.
-
-**Depends on**: nothing (can be done incrementally).
+mcdsl v1.1.0 adds `$PORT` and `$PORT_GRPC` env var support:
+- `config.Load` checks `$PORT` → overrides `Server.ListenAddr`
+- `config.Load` checks `$PORT_GRPC` → overrides `Server.GRPCAddr`
+- Takes precedence over TOML and generic env overrides
+  (`$MCR_SERVER_LISTEN_ADDR`) — agent-assigned ports are authoritative
+- Handles both `config.Base` embedding (MCR, MCNS, MCAT) and direct
+  `ServerConfig` embedding (Metacrypt) via struct tree walking
+- MCR, Metacrypt, MCNS upgraded to mcdsl v1.1.0
 
 ---
 
@@ -308,15 +303,15 @@ They don't check `$PORT` env vars.
 The dependencies form a rough order:
 
 ```
-Phase A — Independent groundwork (parallel):
+Phase A — Independent groundwork: ✓ COMPLETE
   #1  mcdsl proper module versioning ✓ DONE
-  #2  MCP agent port assignment
+  #2  MCP agent port assignment ✓ DONE
   #5  mc-proxy route persistence ✓ DONE
-  #9  $PORT convention in applications
+  #9  $PORT convention in applications ✓ DONE
 
-Phase B — MCP route registration:
+Phase B — MCP route registration: ← IN PROGRESS
   #3  Agent registers routes with mc-proxy
-      (depends on #2 + #5)
+      (depends on #2 + #5 — both done)
 
 Phase C — Automated TLS:
   #7  Metacrypt cert issuance policy
@@ -329,31 +324,24 @@ Phase D — DNS:
       (depends on #8)
 ```
 
-Phase A is partially complete. mcdsl (#1) and mc-proxy route
-persistence (#5) are done. The remaining Phase A work (#2, #9) can
-proceed in parallel.
+**Phase A is complete.** Services can be deployed with agent-assigned
+ports and `$PORT` env vars. mc-proxy routes must still be registered
+manually via `mcproxyctl` or the gRPC API.
 
-After Phase A, services can be deployed with agent-assigned ports
-(manually registered in mc-proxy).
+**Phase B is next.** The agent will call mc-proxy's gRPC API to
+register/remove routes automatically during deploy/stop. This
+eliminates the last manual networking step — no more `mcproxyctl`
+or TOML editing.
 
-After Phase B, the manual steps are: cert provisioning and DNS. This
-is the biggest quality-of-life improvement — no more manual port
-picking or mc-proxy TOML editing.
-
-After Phase C, only DNS remains manual.
-
-After Phase D, `mcp deploy` is fully declarative.
-
-Each phase is independently useful and deployable.
+After Phase C, cert provisioning is automatic. After Phase D,
+`mcp deploy` is fully declarative.
 
 ### Immediate Next Steps
 
-1. **MCP agent port assignment (#2)** — new service definition parser,
-   port allocation, `$PORT_*` injection. With #5 done, this is the
-   remaining blocker for Phase B.
-2. **$PORT convention (#9)** — small per-service config change. Can
-   start incrementally now, but only useful once #2 is deployed.
-3. **mcdoc implementation** — fully designed, no platform evolution
+1. **Phase B: MCP agent route registration (#3)** — agent connects to
+   mc-proxy via Unix socket, registers routes on deploy, removes on
+   stop. TLS certs are pre-provisioned (Phase C automates this later).
+2. **mcdoc implementation** — fully designed, no platform evolution
    dependency. Deployable with a manually assigned port today.
 
 ---
