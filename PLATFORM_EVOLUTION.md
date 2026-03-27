@@ -178,24 +178,15 @@ about one node, one mc-proxy, or loopback-only backends.
 
 ### What needs to change
 
-#### 1. mcdsl: Proper Module Versioning
+#### 1. mcdsl: Proper Module Versioning — DONE
 
-**Gap**: mcdsl is used via `replace` directives and sibling directory
-hacks. Docker builds require the source tree to be adjacent. This is
-fragile and violates normal Go module conventions.
-
-**Work**:
-- Tag mcdsl releases with semver (e.g., `v1.0.0`, `v1.1.0`).
-- Remove all `replace` directives from consuming services' `go.mod`
-  files. Services import mcdsl by URL and version like any other
-  dependency.
-- Docker builds fetch mcdsl via the Go module proxy / Gitea — no local
-  source tree required.
-- `uses_mcdsl` is eliminated from service definitions and build config.
-
-**Depends on**: Gitea module hosting working correctly for
-`git.wntrmute.dev/kyle/mcdsl` (it should already — Go modules over
-git are standard).
+mcdsl is already properly versioned and released:
+- Tagged releases: `v0.1.0`, `v1.0.0`, `v1.0.1`
+- All consuming services import by URL with pinned versions
+  (mcr, mcat, mcns, mc-proxy → `v1.0.0`; metacrypt → `v1.0.1`)
+- No `replace` directives anywhere
+- Docker builds use standard `go mod download`
+- `uses_mcdsl` eliminated from service definitions and docs
 
 #### 2. MCP Agent: Port Assignment
 
@@ -317,7 +308,7 @@ The dependencies form a rough order:
 
 ```
 Phase A — Independent groundwork (parallel):
-  #1  mcdsl proper module versioning
+  #1  mcdsl proper module versioning ✓ DONE
   #2  MCP agent port assignment
   #5  mc-proxy route persistence
   #9  $PORT convention in applications
@@ -337,8 +328,11 @@ Phase D — DNS:
       (depends on #8)
 ```
 
-After Phase A, mcdsl builds are clean and services can be deployed
-with agent-assigned ports (manually registered in mc-proxy).
+Phase A is partially complete. mcdsl is done. The remaining Phase A
+work (#2, #5, #9) can proceed in parallel.
+
+After Phase A, services can be deployed with agent-assigned ports
+(manually registered in mc-proxy).
 
 After Phase B, the manual steps are: cert provisioning and DNS. This
 is the biggest quality-of-life improvement — no more manual port
@@ -349,6 +343,19 @@ After Phase C, only DNS remains manual.
 After Phase D, `mcp deploy` is fully declarative.
 
 Each phase is independently useful and deployable.
+
+### Immediate Next Steps
+
+1. **mc-proxy route persistence (#5)** — mc-proxy already has SQLite
+   and a gRPC API. Persist routes in the database, load on startup.
+   This unblocks Phase B with no external dependencies.
+2. **MCP agent port assignment (#2)** — new service definition parser,
+   port allocation, `$PORT_*` injection. Can develop in parallel with
+   #5.
+3. **$PORT convention (#9)** — small per-service config change. Can
+   start incrementally now, but only useful once #2 is deployed.
+4. **mcdoc implementation** — fully designed, no platform evolution
+   dependency. Deployable with a manually assigned port today.
 
 ---
 
