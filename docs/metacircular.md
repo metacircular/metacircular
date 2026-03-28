@@ -183,14 +183,19 @@ delegates authentication to it; no service maintains its own user database.
   Services validate tokens by calling back to MCIAS (cached 30s by SHA-256 of
   the token).
 
-- **Role-based access.** Three roles — `admin` (full access, policy bypass),
-  `user` (policy-governed), `guest` (service-dependent restrictions). Admin
-  detection comes solely from the MCIAS `admin` role; services never promote
-  users locally.
+- **Role-based access.** Three roles — `admin` (MCIAS account management,
+  policy changes, zone mutations — reserved for human operators), `user`
+  (policy-governed), `guest` (service-dependent restrictions, rejected by MCP
+  agent). Admin detection comes solely from the MCIAS `admin` role; services
+  never promote users locally. Routine operations (deploy, push, DNS updates)
+  do not require admin.
 
 - **Account types.** Human accounts (interactive users) and system accounts
-  (service-to-service). Both authenticate the same way; system accounts enable
-  automated workflows.
+  (service-to-service). Both produce standard JWTs validated the same way.
+  System accounts carry no roles — their authorization is handled by each
+  service's policy engine (Metacrypt policies, MCNS name-scoped access, MCR
+  default policies). System account tokens are long-lived (365-day default)
+  and do not require passwords for issuance.
 
 - **Login policy.** Priority-based ACL rules that control who can log into
   which services. Rules can target roles, account types, service names, and
@@ -278,7 +283,9 @@ serves the container images that MCP deploys across the platform.
 - **Authenticated access.** No anonymous access. MCR uses the OCI token
   authentication flow: clients hit `/v2/`, receive a 401 with a token
   endpoint, authenticate via MCIAS, and use the returned JWT for subsequent
-  requests.
+  requests. The token endpoint accepts both username/password (standard
+  login) and pre-existing MCIAS JWTs as passwords (personal-access-token
+  pattern), enabling non-interactive push/pull for system accounts and CI.
 
 - **Policy-controlled push/pull.** Fine-grained ACL rules govern who can push
   to or pull from which repositories. Integrated with MCIAS roles.
@@ -290,7 +297,7 @@ serves the container images that MCP deploys across the platform.
 is scheduled, MCP tells the node's agent which image to pull and where to get
 it. MCR sits behind an MC-Proxy instance for TLS routing.
 
-**Status:** Implemented. v1.2.0. All implementation phases complete.
+**Status:** Implemented. v1.2.1. All implementation phases complete.
 
 ---
 
@@ -371,9 +378,13 @@ into DNS records.
   using internal DNS names automatically resolve to the right place without
   config changes.
 
-- **Record management API.** Authenticated via MCIAS. MCP is the primary
-  consumer for dynamic updates. Operators can also manage records directly
-  for static entries (node addresses, aliases).
+- **Record management API.** Authenticated via MCIAS with name-scoped
+  authorization. Admin can manage all records and zones. The `mcp-agent`
+  system account can create and delete any record. Other system accounts
+  can only manage records matching their own name (e.g., system account
+  `mcq` can manage `mcq.svc.mcp.metacircular.net` but not other records).
+  Human users have read-only access to records. Zone mutations (create,
+  update, delete zones) remain admin-only.
 
 **How it fits in:** MCNS answers "what is the address of X?" MCP answers "where
 is service α running?" and pushes the answer to MCNS. This separation means
@@ -381,10 +392,11 @@ services can use stable DNS names in their configs (e.g.,
 `mcias.svc.mcp.metacircular.net` in `[mcias] server_url`) that survive
 migration without config changes.
 
-**Status:** Implemented. v1.1.0. Custom Go DNS server deployed on rift,
+**Status:** Implemented. v1.1.1. Custom Go DNS server deployed on rift,
 serving two authoritative zones (`svc.mcp.metacircular.net` and
 `mcp.metacircular.net`) plus upstream forwarding. REST + gRPC APIs with
-MCIAS auth. Records stored in SQLite.
+MCIAS auth and name-scoped system account authorization. Records stored
+in SQLite.
 
 ---
 
@@ -435,9 +447,17 @@ each managed node.
 - **Master/agent architecture.** MCP Master runs on the operator's machine.
   Agents run on every managed node, receiving C2 (command and control) from
   Master, reporting node status, and managing local workloads. The C2 channel
-  is authenticated via MCIAS. The master does not need to be always-on —
-  agents keep running their workloads independently; the master is needed only
-  to issue new commands.
+  is authenticated via MCIAS — any authenticated non-guest user or system
+  account is accepted (admin role is not required for deploy operations).
+  The master does not need to be always-on — agents keep running their
+  workloads independently; the master is needed only to issue new commands.
+
+- **System account automation.** The agent uses an `mcp-agent` system account
+  for all service-to-service communication: TLS cert provisioning (Metacrypt),
+  DNS record management (MCNS), and container image pulls (MCR). Each service
+  authorizes the agent through its own policy engine. Per-service system
+  accounts (e.g., `mcq`) can be created for scoped self-management — a service
+  account can only manage its own DNS records, not other services'.
 
 - **Node management.** Track which nodes are in the platform, their health,
   available resources, and running workloads.
@@ -458,7 +478,7 @@ services it depends on.
 can deploy them. The systemd unit files exist as a fallback and for bootstrap —
 the long-term deployment model is MCP-managed containers.
 
-**Status:** Implemented. v0.4.0. Deployed on rift managing all platform
+**Status:** Implemented. v0.7.2. Deployed on rift managing all platform
 containers. Route declarations with automatic port allocation (`$PORT` /
 `$PORT_<NAME>` env vars passed to containers). MC-Proxy route registration
 during deploy and stop. Automated TLS cert provisioning for L7 routes via
