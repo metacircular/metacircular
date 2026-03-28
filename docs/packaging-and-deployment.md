@@ -123,18 +123,38 @@ Service definitions are TOML files that tell MCP what to deploy. They
 live at `~/.config/mcp/services/<service>.toml` on the operator
 workstation.
 
-### Minimal Example (Single Component)
+### Minimal Example (Single Component, L7)
 
 ```toml
 name = "myservice"
 node = "rift"
-version = "v1.0.0"
+
+[build.images]
+myservice = "Dockerfile"
+
+[[components]]
+name = "web"
+image = "mcr.svc.mcp.metacircular.net:8443/myservice:v1.0.0"
+
+[[components.routes]]
+port = 8443
+mode = "l7"
+```
+
+### API Service Example (L4, Multiple Routes)
+
+```toml
+name = "myservice"
+node = "rift"
 
 [build.images]
 myservice = "Dockerfile"
 
 [[components]]
 name = "api"
+image = "mcr.svc.mcp.metacircular.net:8443/myservice:v1.0.0"
+volumes = ["/srv/myservice:/srv/myservice"]
+cmd = ["server", "--config", "/srv/myservice/myservice.toml"]
 
 [[components.routes]]
 name = "rest"
@@ -152,7 +172,6 @@ mode = "l4"
 ```toml
 name = "myservice"
 node = "rift"
-version = "v1.0.0"
 
 [build.images]
 myservice = "Dockerfile.api"
@@ -160,6 +179,7 @@ myservice-web = "Dockerfile.web"
 
 [[components]]
 name = "api"
+image = "mcr.svc.mcp.metacircular.net:8443/myservice:v1.0.0"
 volumes = ["/srv/myservice:/srv/myservice"]
 cmd = ["server", "--config", "/srv/myservice/myservice.toml"]
 
@@ -175,6 +195,7 @@ mode = "l4"
 
 [[components]]
 name = "web"
+image = "mcr.svc.mcp.metacircular.net:8443/myservice-web:v1.0.0"
 volumes = ["/srv/myservice:/srv/myservice"]
 cmd = ["server", "--config", "/srv/myservice/myservice.toml"]
 
@@ -183,21 +204,16 @@ port = 443
 mode = "l7"
 ```
 
-### Convention-Derived Defaults
+### Conventions
 
-Most fields are optional — MCP derives them from conventions:
+A few fields are derived by the agent at deploy time:
 
 | Field | Default | Override when... |
 |-------|---------|------------------|
-| Image name | `<service>` (api), `<service>-<component>` (others) | Image name differs from convention |
-| Image registry | `mcr.svc.mcp.metacircular.net:8443` (from global MCP config) | Never — always use MCR |
-| Version | Service-level `version` field | A component needs a different version |
-| Volumes | `/srv/<service>:/srv/<service>` | Additional mounts are needed |
-| Network | `mcpnet` | Service needs host networking or a different network |
-| User | `0:0` | Never change this for standard services |
-| Restart | `unless-stopped` | Service should not auto-restart |
-| Source path | `<service>` relative to workspace root | Directory name differs from service name |
-| Hostname | `<service>.svc.mcp.metacircular.net` | Service needs a public hostname |
+| Source path | `<service>` relative to workspace root | Directory name differs from service name (use `path`) |
+| Hostname | `<service>.svc.mcp.metacircular.net` | Service needs a public hostname (use route `hostname`) |
+
+All other fields must be explicit in the service definition.
 
 ### Service Definition Reference
 
@@ -207,7 +223,6 @@ Most fields are optional — MCP derives them from conventions:
 |-------|----------|---------|
 | `name` | Yes | Service name (matches project name) |
 | `node` | Yes | Target node to deploy to |
-| `version` | Yes | Image version tag (semver, e.g. `v1.0.0`) |
 | `active` | No | Whether MCP keeps this running (default: `true`) |
 | `path` | No | Source directory relative to workspace (default: `name`) |
 
@@ -215,20 +230,20 @@ Most fields are optional — MCP derives them from conventions:
 
 | Field | Purpose |
 |-------|---------|
-| `build.images.<name>` | Maps image name to Dockerfile path |
+| `build.images.<name>` | Maps build image name to Dockerfile path. The `<name>` must match the repository name in a component's `image` field (the part after the last `/`, before the `:` tag). |
 
 **Component fields:**
 
-| Field | Purpose |
-|-------|---------|
-| `name` | Component name (e.g. `api`, `web`) |
-| `image` | Full image reference override |
-| `version` | Version override for this component |
-| `volumes` | Volume mounts (list of `host:container` strings) |
-| `cmd` | Command override (list of strings) |
-| `network` | Container network override |
-| `user` | Container user override |
-| `restart` | Restart policy override |
+| Field | Required | Purpose |
+|-------|----------|---------|
+| `name` | Yes | Component name (e.g. `api`, `web`) |
+| `image` | Yes | Full image reference (e.g. `mcr.svc.mcp.metacircular.net:8443/myservice:v1.0.0`) |
+| `volumes` | No | Volume mounts (list of `host:container` strings) |
+| `cmd` | No | Command override (list of strings) |
+| `env` | No | Extra environment variables (list of `KEY=VALUE` strings) |
+| `network` | No | Container network (default: none) |
+| `user` | No | Container user (e.g. `0:0`) |
+| `restart` | No | Restart policy (e.g. `unless-stopped`) |
 
 **Route fields (under `[[components.routes]]`):**
 
@@ -248,9 +263,11 @@ Most fields are optional — MCP derives them from conventions:
 
 ### Version Pinning
 
-Service definitions **must** pin an explicit semver tag (e.g. `v1.1.0`).
-Never use `:latest`. This ensures deployments are reproducible and
-`mcp status` shows the actual running version.
+Component `image` fields **must** pin an explicit semver tag (e.g.
+`mcr.svc.mcp.metacircular.net:8443/myservice:v1.1.0`). Never use
+`:latest`. This ensures deployments are reproducible and `mcp status`
+shows the actual running version. The version is extracted from the
+image tag.
 
 ---
 
@@ -385,11 +402,16 @@ addresses** — they will be overridden at deploy time.
 
 | Env var | When set |
 |---------|----------|
-| `$PORT` | Component has a single route |
-| `$PORT_<NAME>` | Component has multiple named routes |
+| `$PORT` | Component has a single unnamed route |
+| `$PORT_<NAME>` | Component has named routes |
 
 Route names are uppercased: `name = "rest"` → `$PORT_REST`,
 `name = "grpc"` → `$PORT_GRPC`.
+
+**Container listen address:** Services must bind to `0.0.0.0:$PORT`
+(or `:$PORT`), not `localhost:$PORT`. Podman port-forwards go through
+the container's network namespace — binding to `localhost` inside the
+container makes the port unreachable from outside.
 
 Services built with **mcdsl v1.1.0+** handle this automatically —
 `config.Load` checks `$PORT` → overrides `Server.ListenAddr`, and
@@ -475,6 +497,7 @@ co-located on the same node).
 | `mcp build <service>` | Build and push images to MCR |
 | `mcp sync` | Push all service definitions to agents; auto-build missing images |
 | `mcp deploy <service>` | Pull image, (re)create containers, register routes |
+| `mcp undeploy <service>` | Full teardown: remove routes, DNS, certs, and containers |
 | `mcp stop <service>` | Remove routes, stop containers |
 | `mcp start <service>` | Start previously stopped containers |
 | `mcp restart <service>` | Restart containers in place |
@@ -504,13 +527,14 @@ git push origin v1.0.0
 cat > ~/.config/mcp/services/myservice.toml << 'EOF'
 name = "myservice"
 node = "rift"
-version = "v1.0.0"
 
 [build.images]
 myservice = "Dockerfile.api"
 
 [[components]]
 name = "api"
+image = "mcr.svc.mcp.metacircular.net:8443/myservice:v1.0.0"
+volumes = ["/srv/myservice:/srv/myservice"]
 
 [[components.routes]]
 name = "rest"
