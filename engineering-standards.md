@@ -1018,6 +1018,13 @@ Write these before writing code. They are the blueprint, not the afterthought.
 - **Never log secrets.** Keys, passwords, tokens, and plaintext must never
   appear in log output.
 
+### CLI Security
+
+- **Never echo passwords.** Interactive password prompts must suppress
+  terminal echo. Use `mcdsl/terminal.ReadPassword` — it wraps
+  `golang.org/x/term.ReadPassword` with proper prompt and newline handling.
+  Never read passwords with `bufio.Scanner` or `fmt.Scanln`.
+
 ### Web Security
 
 - CSRF tokens on all mutating requests.
