@@ -26,6 +26,7 @@ lives in [docs/metacircular.md](docs/metacircular.md).
 | **MCNS** | Networking — authoritative DNS for internal platform zones, upstream forwarding. | Implemented |
 | **MCP** | Control plane — operator-driven deployment, service registry, data transfer, master/agent container lifecycle. | Implemented |
 | **MCDoc** | Documentation server — renders markdown from Gitea, serves public docs. | Implemented |
+| **MCQ** | Document review queue — push docs for review, MCP server for Claude Code integration. | Implemented |
 | **MCDeploy** | Deployment CLI — tactical bridge tool, now deprecated and archived. Superseded by MCP. | Deprecated |
 
 Shared library: **MCDSL** — standard library for all services (auth, db,
@@ -105,6 +106,7 @@ metacircular/
 ├── mcdsl/          Standard library (shared packages)
 ├── mcdeploy/       Deployment CLI (deprecated, archived)
 ├── mcdoc/          Documentation server
+├── mcq/            Document review queue
 ├── ca/             PKI infrastructure (dev/test, not source code)
 └── docs/           Platform-wide documentation
 ```

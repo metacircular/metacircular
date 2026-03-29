@@ -690,4 +690,5 @@ For reference, these services are operational on the platform:
 | MCR | v1.2.1 | rift | Container registry |
 | MCNS | v1.1.1 | rift | Authoritative DNS |
 | MCDoc | v0.1.0 | rift | Documentation server |
+| MCQ | v0.2.0 | rift | Document review queue |
 | MCP | v0.7.6 | rift | Control plane agent |

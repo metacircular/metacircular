@@ -25,6 +25,7 @@ provisioning, and DNS registration). Multi-node deployment is being planned
 | MCDSL | v1.4.0 | Stable | N/A (library) | — |
 | MCNS | v1.1.1 | Production | Yes | rift |
 | MCDoc | v0.1.0 | Production | Yes | rift |
+| MCQ | v0.2.0 | Production | Yes | rift |
 | MCP | v0.7.6 | Production | Yes | rift |
 
 ## Service Details
