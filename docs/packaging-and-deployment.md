@@ -503,6 +503,8 @@ co-located on the same node).
 | `mcp restart <service>` | Restart containers in place |
 | `mcp ps` | List all managed containers and status |
 | `mcp status [service]` | Detailed status for a specific service |
+| `mcp logs <service>` | Stream container logs |
+| `mcp edit <service>` | Edit service definition |
 
 ---
 
@@ -682,10 +684,10 @@ For reference, these services are operational on the platform:
 
 | Service | Version | Node | Purpose |
 |---------|---------|------|---------|
-| MCIAS | v1.8.0 | (separate) | Identity and access |
-| Metacrypt | v1.1.0 | rift | Cryptographic service, PKI/CA |
+| MCIAS | v1.9.0 | (separate) | Identity and access |
+| Metacrypt | v1.3.1 | rift | Cryptographic service, PKI/CA |
 | MC-Proxy | v1.2.1 | rift | TLS proxy and router |
-| MCR | v1.2.0 | rift | Container registry |
-| MCNS | v1.1.0 | rift | Authoritative DNS |
+| MCR | v1.2.1 | rift | Container registry |
+| MCNS | v1.1.1 | rift | Authoritative DNS |
 | MCDoc | v0.1.0 | rift | Documentation server |
-| MCP | v0.4.0 | rift | Control plane agent |
+| MCP | v0.7.6 | rift | Control plane agent |
