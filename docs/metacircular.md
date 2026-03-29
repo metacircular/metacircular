@@ -213,7 +213,7 @@ MCIAS evaluates login policy against the service context, verifies credentials,
 and returns a bearer token. The MCIAS Go client library
 (`git.wntrmute.dev/mc/mcias/clients/go`) handles this flow.
 
-**Status:** Implemented. v1.8.0. Feature-complete with active refinement
+**Status:** Implemented. v1.9.0. Feature-complete with active refinement
 (WebAuthn/FIDO2 passkeys, TOTP 2FA, service-context login policies).
 
 ---
@@ -264,7 +264,7 @@ core.
 operations on which engine mounts. Priority-based evaluation, default deny,
 admin bypass. See Metacrypt's `POLICY.md` for the full model.
 
-**Status:** Implemented. v1.1.0. All four engine types complete — CA (with ACME
+**Status:** Implemented. v1.3.1. All four engine types complete — CA (with ACME
 support), SSH CA, transit encryption, and user-to-user encryption.
 
 ---
@@ -421,6 +421,10 @@ each managed node.
   the initial config, pulls the image from MCR, starts the container, and
   pushes a DNS update to MCNS (`α.svc.mcp.metacircular.net` → node address).
 
+- **Undeploy.** Full teardown of a service. Stops the container, removes
+  MC-Proxy routes, deletes DNS records from MCNS, and cleans up the service
+  registry entry. The inverse of deploy.
+
 - **Migrate.** Move a service from one node to another. MCP snapshots the
   service's `/srv/<service>/` directory on the source node (as a tar.zst
   image), transfers it to the destination, extracts it, starts the service,
@@ -478,14 +482,15 @@ services it depends on.
 can deploy them. The systemd unit files exist as a fallback and for bootstrap —
 the long-term deployment model is MCP-managed containers.
 
-**Status:** Implemented. v0.7.2. Deployed on rift managing all platform
+**Status:** Implemented. v0.7.6. Deployed on rift managing all platform
 containers. Route declarations with automatic port allocation (`$PORT` /
 `$PORT_<NAME>` env vars passed to containers). MC-Proxy route registration
 during deploy and stop. Automated TLS cert provisioning for L7 routes via
-Metacrypt CA (Phase C). Two components — `mcp` CLI (operator workstation) and
+Metacrypt CA (Phase C). Automated DNS registration in MCNS during deploy
+and stop (Phase D). Two components — `mcp` CLI (operator workstation) and
 `mcp-agent` (per-node daemon with SQLite registry, rootless Podman,
-monitoring with drift/flap detection). gRPC-only (no REST). 12+ RPCs,
-15+ CLI commands.
+monitoring with drift/flap detection). gRPC-only (no REST). 15 RPCs,
+17+ CLI commands.
 
 ---
 
