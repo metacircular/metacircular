@@ -18,7 +18,7 @@ Metacircular is a multi-service personal infrastructure platform. This root repo
 | `mcdsl/` | Standard library — shared packages for auth, db, config, HTTP/gRPC servers, CSRF, snapshots | Go |
 | `mcdoc/` | Documentation server — renders markdown from Gitea, serves public docs via mc-proxy | Go |
 | `mcp/` | Control plane — operator-driven deployment, service registry, container lifecycle (master/agent) | Go |
-| `mcdeploy/` | Deployment CLI — tactical bridge tool for build, push, deploy operations | Go |
+| `mcdeploy/` | Deployment CLI — deprecated, superseded by MCP (archived) | Go |
 | `mcns/` | Networking service — custom Go DNS server, authoritative for internal zones | Go |
 | `ca/` | PKI infrastructure and secrets for dev/test (not source code, gitignored) | — |
 | `docs/` | Platform-wide documentation (architecture overview, deployment guide) | Markdown |

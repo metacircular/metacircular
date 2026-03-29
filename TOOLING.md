@@ -13,7 +13,7 @@ Go binaries built with `CGO_ENABLED=0` and installed via Nix flakes.
 | `mciasgrpcctl` | mcias | MCIAS gRPC debug CLI | vade, orion, rift |
 | `mcproxyctl` | mc-proxy | MC-Proxy admin CLI — routes, firewall, status | vade, orion, rift |
 | `mcrctl` | mcr | MCR admin CLI — repositories, policies, audit | vade, orion, rift |
-| `mcdeploy` | mcdeploy | Deployment CLI — build, push, deploy (bridge tool) | vade |
+| `mcdeploy` | mcdeploy | Deployment CLI — deprecated, superseded by MCP (archived) | — |
 
 ### Server-only binaries (not installed as tools)
 
@@ -63,7 +63,7 @@ agent binary.
 | mcias | Yes | mciasctl, mciasgrpcctl | Yes | |
 | mc-proxy | Yes | mcproxyctl | Yes | |
 | mcr | Yes | mcrctl | Yes | |
-| mcdeploy | Yes | mcdeploy | Yes | |
+| mcdeploy | Yes | mcdeploy | No | Deprecated, remove from mcpkg.nix |
 | mcp | Yes | mcp, mcp-agent | Yes | Agent also used by mcp.nix systemd unit |
 | mcns | No | — | No | Server-only, no client tool yet |
 | metacrypt | No | — | No | Server-only, no client tool yet |
