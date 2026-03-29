@@ -1,6 +1,6 @@
 # Metacircular Platform Status
 
-Last updated: 2026-03-27
+Last updated: 2026-03-28
 
 ## Platform Overview
 
@@ -8,28 +8,30 @@ One node operational (**rift**), running core infrastructure services as
 containers fronted by MC-Proxy. MCIAS runs separately (not on rift).
 Bootstrap phases 0–4 complete (MCIAS, Metacrypt, MC-Proxy, MCR all
 operational). MCP is deployed and managing all platform containers. MCNS is
-deployed on rift, serving authoritative DNS.
+deployed on rift, serving authoritative DNS. Platform evolution Phases A–D
+complete (automated port assignment, route registration, TLS cert
+provisioning, and DNS registration). Multi-node deployment is being planned
+(Phase E).
 
 ## Service Status
 
 | Service | Version | SDLC Phase | Deployed | Node |
 |---------|---------|------------|----------|------|
-| MCIAS | v1.8.0 | Maintenance | Yes | (separate) |
-| Metacrypt | v1.1.0 | Production | Yes | rift |
+| MCIAS | v1.9.0 | Maintenance | Yes | (separate) |
+| Metacrypt | v1.3.1 | Production | Yes | rift |
 | MC-Proxy | v1.2.1 | Maintenance | Yes | rift |
-| MCR | v1.2.0 | Production | Yes | rift |
-| MCAT | v1.1.0 | Complete | Unknown | — |
-| MCDSL | v1.2.0 | Stable | N/A (library) | — |
-| MCNS | v1.1.0 | Production | Yes | rift |
+| MCR | v1.2.1 | Production | Yes | rift |
+| MCAT | v1.1.1 | Complete | Unknown | — |
+| MCDSL | v1.4.0 | Stable | N/A (library) | — |
+| MCNS | v1.1.1 | Production | Yes | rift |
 | MCDoc | v0.1.0 | Production | Yes | rift |
-| MCP | v0.4.0 | Production | Yes | rift |
-| MCDeploy | v0.2.0 | Active dev | N/A (CLI tool) | — |
+| MCP | v0.7.6 | Production | Yes | rift |
 
 ## Service Details
 
 ### MCIAS — Identity and Access Service
 
-- **Version:** v1.8.0 (client library: clients/go/v0.2.0)
+- **Version:** v1.9.0 (client library: clients/go/v0.2.0)
 - **Phase:** Maintenance. Phases 0-14 complete. Feature-complete with active
   refinement.
 - **Deployment:** Running in production. All other services authenticate
@@ -41,7 +43,7 @@ deployed on rift, serving authoritative DNS.
 
 ### Metacrypt — Cryptographic Service Engine
 
-- **Version:** v1.1.0.
+- **Version:** v1.3.1.
 - **Phase:** Production. All four engine types implemented (CA, SSH CA, transit,
   user-to-user). Active work on integration test coverage.
 - **Deployment:** Running on rift as a container, fronted by MC-Proxy on
@@ -56,7 +58,8 @@ deployed on rift, serving authoritative DNS.
 - **Version:** v1.2.1.
 - **Phase:** Maintenance. Stable and actively routing traffic on rift.
 - **Deployment:** Running on rift. Fronts Metacrypt, MCR, and sgard on ports
-  443, 8443, and 9443. Prometheus metrics on 127.0.0.1:9091.
+  443, 8443, and 9443. Prometheus metrics on 127.0.0.1:9091. Routes persisted
+  in SQLite and managed via gRPC API.
 - **Recent work:** Route persistence (SQLite), idempotent AddRoute (upsert),
   golangci-lint v2 compliance, module path migration to mc/ org.
 - **Artifacts:** systemd units (service + backup timer), Docker Compose
@@ -64,7 +67,7 @@ deployed on rift, serving authoritative DNS.
 
 ### MCR — Container Registry
 
-- **Version:** v1.2.0. All implementation phases complete.
+- **Version:** v1.2.1. All implementation phases complete.
 - **Phase:** Production. Deployed on rift, serving container images.
 - **Deployment:** Running on rift as two containers (mcr API + mcr-web),
   fronted by MC-Proxy on ports 443 (web, L7), 8443 (API, L4), and
@@ -77,7 +80,7 @@ deployed on rift, serving authoritative DNS.
 
 ### MCAT — Login Policy Tester
 
-- **Version:** v1.1.0.
+- **Version:** v1.1.1.
 - **Phase:** Complete. Diagnostic tool, not core infrastructure.
 - **Deployment:** Available for ad-hoc use. Lightweight tool for testing
   MCIAS login policy rules.
@@ -86,20 +89,21 @@ deployed on rift, serving authoritative DNS.
 
 ### MCDSL — Standard Library
 
-- **Version:** v1.2.0.
+- **Version:** v1.4.0.
 - **Phase:** Stable. All 9 packages implemented and tested. Being adopted
   across the platform.
 - **Deployment:** N/A (Go library, imported by other services).
 - **Packages:** auth, db, config, httpserver, grpcserver, csrf, web, health,
   archive.
-- **Adoption:** All services except mcias on v1.2.0. mcias pending.
+- **Adoption:** All services except mcias on v1.4.0. mcias pending.
 
 ### MCNS — Networking Service
 
-- **Version:** v1.1.0.
+- **Version:** v1.1.1.
 - **Phase:** Production. Custom Go DNS server replacing CoreDNS precursor.
 - **Deployment:** Running on rift as a container managed by MCP. Serves two
-  authoritative zones plus upstream forwarding.
+  authoritative zones plus upstream forwarding. REST + gRPC APIs with MCIAS
+  auth and name-scoped system account authorization.
 - **Recent work:** v1.0.0 implementation (custom Go DNS server), engineering
   review, deployed to rift replacing CoreDNS.
 - **Artifacts:** Dockerfile, Docker Compose (rift), MCP service definition,
@@ -117,33 +121,23 @@ deployed on rift, serving authoritative DNS.
 
 ### MCP — Control Plane
 
-- **Version:** v0.4.0.
-- **Phase:** Production. Phases 0-4 complete. Phase C (automated TLS cert
-  provisioning) implemented. Deployed to rift, managing all platform containers.
+- **Version:** v0.7.6.
+- **Phase:** Production. Phases A–D complete. Deployed to rift, managing all
+  platform containers.
 - **Deployment:** Running on rift. Agent as systemd service under `mcp` user
-  with rootless podman. Manages metacrypt, mc-proxy, mcr, and mcns containers.
+  with rootless podman. Manages metacrypt, mc-proxy, mcr, mcns, and mcdoc
+  containers.
 - **Architecture:** Two components — `mcp` CLI (thin client on vade) and
   `mcp-agent` (per-node daemon with SQLite registry, podman management,
-  monitoring with drift/flap detection, route registration with mc-proxy during
-  deploy/stop, automated TLS cert provisioning for L7 routes via Metacrypt CA).
-  gRPC-only (no REST).
-- **Recent work:** Full v1 implementation (12 RPCs, 15 CLI commands),
-  deployment to rift, container migration from kyle→mcp user, service
-  definition authoring. Phase C automated TLS cert provisioning for L7 routes,
-  mc-proxy route registration during deploy, mc-proxy dependency updated to
-  v1.2.0, module path migration.
+  monitoring with drift/flap detection, route registration with mc-proxy,
+  automated TLS cert provisioning for L7 routes via Metacrypt CA, automated
+  DNS registration in MCNS). gRPC-only (no REST). 15 RPCs, 17+ CLI commands.
+- **Recent work:** Phase C (automated TLS cert provisioning), Phase D
+  (automated DNS registration via MCNS), undeploy command, logs command,
+  edit command, auto-login to MCR, system account auth model, module path
+  migration.
 - **Artifacts:** systemd service (NixOS), TLS cert from Metacrypt, service
   definition files, design docs.
-
-### MCDeploy — Deployment CLI
-
-- **Version:** v0.2.0.
-- **Phase:** Active development. Tactical bridge tool for deploying services
-  while MCP is being built.
-- **Deployment:** N/A (local CLI tool, not a server).
-- **Recent work:** Initial implementation, Nix flake.
-- **Description:** Single-binary CLI that shells out to podman/ssh/scp/git
-  for build, push, deploy, cert renewal, and status. TOML-configured.
 
 ## Node Inventory
 
@@ -153,10 +147,14 @@ deployed on rift, serving authoritative DNS.
 
 ## Rift Port Map
 
+Note: Services deployed via MCP receive dynamically assigned host ports
+(10000–60000). The ports below are for infrastructure services with static
+assignments or well-known ports.
+
 | Port | Protocol | Services |
 |------|----------|----------|
 | 53 | DNS (LAN + Tailscale) | mcns |
-| 443 | L7 (TLS termination) | metacrypt-web, mcr-web |
+| 443 | L7 (TLS termination) | metacrypt-web, mcr-web, mcdoc |
 | 8080 | HTTP (all interfaces) | exod |
 | 8443 | L4 (SNI passthrough) | metacrypt API, mcr API |
 | 9090 | HTTP (all interfaces) | exod |

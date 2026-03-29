@@ -5,7 +5,7 @@ from its current manually-wired state to fully declarative deployment.
 It is a living design document — not a spec, not a commitment, but a
 record of where we are, where we want to be, and what's between.
 
-Last updated: 2026-03-27 (Phases A + B + C complete)
+Last updated: 2026-03-28 (Phases A + B + C + D complete)
 
 ---
 
@@ -239,16 +239,16 @@ mc-proxy routes are fully persisted in SQLite and survive restarts:
   bootstrap before MCP is operational. The gRPC API and mcproxyctl
   are the primary route management interfaces going forward.
 
-#### 6. MCP Agent: DNS Registration
+#### 6. MCP Agent: DNS Registration — DONE
 
-**Gap**: DNS records are manually configured in MCNS zone files.
-
-**Work**:
-- Agent creates/updates A records in MCNS for
-  `<service>.svc.mcp.metacircular.net`.
-- Agent removes records on service teardown.
-
-**Depends on**: MCNS record management API (#8).
+Agent automatically manages DNS records during deploy and stop:
+- Deploy: calls MCNS API to create/update A records for
+  `<service>.svc.mcp.metacircular.net` pointing to the node's address.
+- Stop/undeploy: removes DNS records before stopping containers.
+- Config: `[mcns]` section in agent config with server URL, CA cert,
+  token path, zone, and node address.
+- Nil-safe: if MCNS not configured, silently skipped (backward compatible).
+- Authorization: mcp-agent system account can manage any record name.
 
 #### 7. Metacrypt: Automated Cert Issuance Policy — DONE
 
@@ -259,31 +259,29 @@ issuance:
   `*.svc.mcp.metacircular.net`
 - One cert per hostname per service — no wildcard certs
 
-#### 8. MCNS: Record Management API
+#### 8. MCNS: Record Management API — DONE
 
-**Gap**: MCNS v1.0.0 has REST + gRPC APIs and SQLite storage, but
-records are currently seeded from migrations (static). The API supports
-CRUD operations but MCP does not yet call it for dynamic registration.
-
-**Work**:
-- MCP agent calls MCNS API to create/update/delete records on
-  deploy/stop.
-- MCIAS auth scoping to allow MCP agent to manage
-  `*.svc.mcp.metacircular.net` records.
-
-**Depends on**: MCNS API exists. Remaining work is MCP integration
-and auth scoping.
+MCNS provides full CRUD for DNS records via REST and gRPC:
+- REST: POST/GET/PUT/DELETE on `/v1/zones/{zone}/records`
+- gRPC: RecordService with ListRecords, CreateRecord, GetRecord,
+  UpdateRecord, DeleteRecord RPCs
+- SQLite-backed with transactional writes, CNAME exclusivity enforcement,
+  and automatic SOA serial bumping on mutations
+- Authorization: admin can manage any record, mcp-agent system account
+  can manage any record name, other system accounts scoped to own name
+- MCP agent uses the REST API to register/deregister records on
+  deploy/stop
 
 #### 9. Application $PORT Convention — DONE
 
-mcdsl v1.2.0 adds `$PORT` and `$PORT_GRPC` env var support:
+mcdsl v1.2.0 added `$PORT` and `$PORT_GRPC` env var support:
 - `config.Load` checks `$PORT` → overrides `Server.ListenAddr`
 - `config.Load` checks `$PORT_GRPC` → overrides `Server.GRPCAddr`
 - Takes precedence over TOML and generic env overrides
   (`$MCR_SERVER_LISTEN_ADDR`) — agent-assigned ports are authoritative
 - Handles both `config.Base` embedding (MCR, MCNS, MCAT) and direct
   `ServerConfig` embedding (Metacrypt) via struct tree walking
-- All consuming services upgraded to mcdsl v1.2.0
+- All consuming services on mcdsl v1.4.0
 
 ---
 
@@ -306,25 +304,84 @@ Phase C — Automated TLS: ✓ COMPLETE
   #4  Agent provisions certs ✓ DONE
       (depends on #7)
 
-Phase D — DNS:
-  #8  MCNS record management API
-  #6  Agent registers DNS
+Phase D — DNS: ✓ COMPLETE
+  #8  MCNS record management API ✓ DONE
+  #6  Agent registers DNS ✓ DONE
       (depends on #8)
+
+Phase E — Multi-node agent management:
+  #10 Agent binary at /srv/mcp/mcp-agent on all nodes
+  #11 mcp agent upgrade (SSH-based cross-compiled push)
+  #12 Node provisioning tooling (Debian + NixOS)
+      (depends on #10)
 ```
 
-**Phases A, B, and C are complete.** Services can be deployed with
+**Phases A, B, C, and D are complete.** Services can be deployed with
 agent-assigned ports, `$PORT` env vars, automatic mc-proxy route
-registration, and automated TLS cert provisioning from Metacrypt CA.
-No more manual port picking, mcproxyctl, TOML editing, or cert generation.
-
-The only remaining manual step is DNS registration (Phase D).
+registration, automated TLS cert provisioning from Metacrypt CA, and
+automatic DNS registration in MCNS. No more manual port picking,
+mcproxyctl, TOML editing, cert generation, or DNS zone editing.
 
 ### Immediate Next Steps
 
-1. **Phase D: DNS** — MCNS record management API integration, then
-   agent registers DNS records during deploy.
+1. **Phase E: Multi-node agent management** — see below.
 2. **mcdoc implementation** — fully designed, no platform evolution
    dependency. Deployable now with the new route system.
+
+#### 10. Agent Binary Location Convention
+
+**Gap**: The agent binary is currently NixOS-managed on rift (lives in
+`/nix/store/`, systemd `ExecStart` points there). This doesn't work for
+Debian nodes and requires a full `nixos-rebuild` for every MCP release.
+
+**Work**:
+- Standardize agent binary at `/srv/mcp/mcp-agent` on all nodes.
+- NixOS config: change `ExecStart` from nix store path to
+  `/srv/mcp/mcp-agent`. NixOS still owns user, systemd unit, podman,
+  directories — just not the binary version.
+- Debian nodes: same layout, provisioned by setup script.
+
+#### 11. Agent Upgrade via SSH Push
+
+**Gap**: Updating the agent requires manual, OS-specific steps. On
+NixOS: update flake lock, commit, push, rebuild. On Debian: build, scp,
+restart. With multiple nodes and architectures (amd64 + arm64), this
+doesn't scale.
+
+**Work**:
+- `mcp agent upgrade [node]` CLI command.
+- Cross-compiles agent for each target arch (`GOARCH` from node config).
+- Uses `golang.org/x/crypto/ssh` to push the binary and restart the
+  service. No external tool dependencies.
+- Node config gains `ssh` (hostname) and `arch` (GOARCH) fields.
+- Upgrades all nodes by default to prevent version skew. New RPCs cause
+  `Unimplemented` errors if agent and CLI are out of sync.
+
+**Depends on**: #10 (binary location convention).
+
+#### 12. Node Provisioning Tooling
+
+**Gap**: Setting up a new node requires manual steps: create user,
+create directories, install podman, write config, create systemd unit.
+Different for NixOS vs Debian.
+
+**Work**:
+- Go-based provisioning tool (part of MCP CLI) or standalone script.
+- `mcp node provision <name>` SSHs to the node and runs setup:
+  create `mcp` user with podman access, create `/srv/mcp/`, write
+  systemd unit, install initial binary, start service.
+- For NixOS, provisioning remains in the NixOS config (declarative).
+  The provisioning tool targets Debian/generic Linux.
+
+**Depends on**: #10 (binary location convention), #11 (SSH infra).
+
+**Current fleet**:
+
+| Node | OS | Arch | Status |
+|------|----|------|--------|
+| rift | NixOS | amd64 | Operational, single MCP agent |
+| hyperborea | Debian (RPi) | arm64 | Online, needs agent provisioning |
+| svc | Debian | amd64 | Runs MCIAS, needs agent for public edge services |
 
 ---
 

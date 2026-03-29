@@ -608,6 +608,74 @@ Services follow a standard directory structure:
 
 ---
 
+## 10. Agent Management
+
+MCP manages a fleet of nodes with heterogeneous operating systems and
+architectures. The agent binary lives at `/srv/mcp/mcp-agent` on every
+node — this is a mutable path that MCP controls, regardless of whether
+the node runs NixOS or Debian.
+
+### Node Configuration
+
+Each node in `~/.config/mcp/mcp.toml` includes SSH and architecture
+info for agent management:
+
+```toml
+[[nodes]]
+name = "rift"
+address = "100.95.252.120:9444"
+ssh = "rift"
+arch = "amd64"
+
+[[nodes]]
+name = "hyperborea"
+address = "100.x.x.x:9444"
+ssh = "hyperborea"
+arch = "arm64"
+```
+
+### Upgrading Agents
+
+After tagging a new MCP release:
+
+```bash
+# Upgrade all nodes (recommended — prevents version skew)
+mcp agent upgrade
+
+# Upgrade a single node
+mcp agent upgrade rift
+
+# Check versions across the fleet
+mcp agent status
+```
+
+`mcp agent upgrade` cross-compiles the agent binary for each target
+architecture, SSHs to each node, atomically replaces the binary, and
+restarts the systemd service. All nodes should be upgraded together
+because new CLI versions often depend on new agent RPCs.
+
+### Provisioning New Nodes
+
+One-time setup for a new Debian node:
+
+```bash
+# 1. Provision the node (creates user, dirs, systemd unit, installs binary)
+mcp node provision <name>
+
+# 2. Register the node
+mcp node add <name> <address>
+
+# 3. Deploy services
+mcp deploy <service>
+```
+
+For NixOS nodes, provisioning is handled by the NixOS configuration.
+The NixOS config creates the `mcp` user, systemd unit, and directories.
+The `ExecStart` path points to `/srv/mcp/mcp-agent` so that `mcp agent
+upgrade` works the same as on Debian nodes.
+
+---
+
 ## Appendix: Currently Deployed Services
 
 For reference, these services are operational on the platform:
