@@ -1,0 +1,99 @@
+[0] kyle@vade:~/ > cat ~/.config/mcp/services/mcq.toml
+name = 'mcq'
+node = 'rift'
+active = true
+path = '../mcq'
+
+[build.images]
+mcq = 'Dockerfile'
+
+[[components]]
+name = 'mcq'
+image = 'mcr.svc.mcp.metacircular.net:8443/mcq:v0.3.2'
+volumes = ['/srv/mcq:/srv/mcq']
+cmd = ['server', '--config', '/srv/mcq/mcq.toml']
+
+[[components.routes]]
+port = 8443
+mode = 'l7'
+[0] kyle@vade:~/ > mcp node list
+NAME  ADDRESS              VERSION
+rift  100.95.252.120:9444  v0.7.9
+[0] kyle@vade:~/ > mcp ps
+SERVICE    COMPONENT  NODE  STATE    VERSION  UPTIME
+exo        exod       rift  running  v0.1.0   2d16h
+kls        kls        rift  running  v0.1.2   23h57m
+mc-proxy   mc-proxy   rift  running  v1.1.1   17h16m
+mcat       mcat       rift  running  v1.1.1   1d0h
+mcdoc      mcdoc      rift  running  v0.1.0   2d1h
+mcns       mcns       rift  running  v1.1.1   1d2h
+mcq        mcq        rift  running  v0.3.1   2m19s
+mcr        api        rift  running  v1.2.1   1d2h
+mcr        web        rift  running  v1.2.1   1d2h
+metacrypt  api        rift  running  v1.3.1   22h6m
+metacrypt  web        rift  running  v1.3.1   22h46m
+sgard      sgardd     rift  running  v3.2.0   2d16h
+[0] kyle@vade:~/ > mcp deploy mcq
+image mcr.svc.mcp.metacircular.net:8443/mcq:v0.3.2 not found, building from Dockerfile
+pushing mcr.svc.mcp.metacircular.net:8443/mcq:v0.3.2
+  mcq: ok
+[0] kyle@vade:~/ > mcp ps
+SERVICE    COMPONENT  NODE  STATE    VERSION  UPTIME
+exo        exod       rift  running  v0.1.0   2d16h
+kls        kls        rift  running  v0.1.2   23h58m
+mc-proxy   mc-proxy   rift  running  v1.1.1   17h16m
+mcat       mcat       rift  running  v1.1.1   1d0h
+mcdoc      mcdoc      rift  running  v0.1.0   2d1h
+mcns       mcns       rift  running  v1.1.1   1d2h
+mcq        mcq        rift  running  v0.3.2   12s
+mcr        api        rift  running  v1.2.1   1d2h
+mcr        web        rift  running  v1.2.1   1d2h
+metacrypt  api        rift  running  v1.3.1   22h7m
+metacrypt  web        rift  running  v1.3.1   22h47m
+sgard      sgardd     rift  running  v3.2.0   2d16h
+[0] kyle@vade:~/ > mcp logs mcq -n 10
+time=2026-03-30T01:14:42.033Z level=INFO msg="mcq starting" version=dev addr=:57546
+[0] kyle@vade:~/ > mcp dns
+ZONE: mcp.metacircular.net
+  NAME  TYPE  VALUE           TTL
+  ns    A     100.95.252.120  300
+  ns    A     192.168.88.181  300
+  ns    A     71.19.144.164   300
+  rift  A     100.95.252.120  300
+  rift  A     192.168.88.181  300
+
+ZONE: svc.mcp.metacircular.net
+  NAME       TYPE  VALUE           TTL
+  kls        A     192.168.88.181  300
+  mcat       A     192.168.88.181  300
+  mcdoc      A     100.95.252.120  300
+  mcdoc      A     192.168.88.181  300
+  mcp-agent  A     100.95.252.120  300
+  mcp-agent  A     192.168.88.181  300
+  mcq        A     192.168.88.181  300
+  mcr        A     100.95.252.120  300
+  mcr        A     192.168.88.181  300
+  metacrypt  A     100.95.252.120  300
+  metacrypt  A     192.168.88.181  300
+  sgard      A     100.95.252.120  300
+  sgard      A     192.168.88.181  300
+[0] kyle@vade:~/ > mcp route list -n rift
+NODE: rift
+mc-proxy v1.2.1
+uptime:      18h15m38s
+connections: 0
+
+  :443  routes=5  active=0
+    l7 mcdoc.svc.mcp.metacircular.net → 127.0.0.1:38080
+    l7 mcr.svc.mcp.metacircular.net → 127.0.0.1:28080 (re-encrypt)
+    l7 metacrypt.svc.mcp.metacircular.net → 127.0.0.1:18080 (re-encrypt)
+    l7 kls.svc.mcp.metacircular.net → 127.0.0.1:13881
+    l4 mcat.svc.mcp.metacircular.net → 127.0.0.1:41235 (re-encrypt)
+  :8443  routes=3  active=0
+    l4 metacrypt.svc.mcp.metacircular.net → 127.0.0.1:18443
+    l7 mcq.svc.mcp.metacircular.net → 127.0.0.1:57546
+    l4 mcr.svc.mcp.metacircular.net → 127.0.0.1:28443
+  :9443  routes=3  active=0
+    l4 sgard.svc.mcp.metacircular.net → 127.0.0.1:19473
+    l4 mcr.svc.mcp.metacircular.net → 127.0.0.1:29443
+    l4 metacrypt.svc.mcp.metacircular.net → 127.0.0.1:19443
