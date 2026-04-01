@@ -385,7 +385,14 @@ tags         = []
 level = "info"
 ```
 
-For services with a web UI, add:
+For services with SSO-enabled web UIs, add:
+
+```toml
+[sso]
+redirect_uri = "https://<service>.svc.mcp.metacircular.net/sso/callback"
+```
+
+For services with a separate web UI binary, add:
 
 ```toml
 [web]
@@ -433,17 +440,71 @@ these.
 ## 6. Authentication (MCIAS Integration)
 
 Every service delegates authentication to MCIAS. No service maintains
-its own user database.
+its own user database. Services support two login modes: **SSO
+redirect** (recommended for web UIs) and **direct credentials**
+(fallback / API clients).
 
-### Auth Flow
+### SSO Login (Web UIs)
+
+SSO is the preferred login method for web UIs. The flow is an OAuth
+2.0-style authorization code exchange:
+
+1. User visits the service and is redirected to `/login`.
+2. Login page shows a "Sign in with MCIAS" button.
+3. Click redirects to MCIAS (`/sso/authorize`), which authenticates the
+   user.
+4. MCIAS redirects back to the service's `/sso/callback` with an
+   authorization code.
+5. The service exchanges the code for a JWT via a server-to-server call
+   to MCIAS `POST /v1/sso/token`.
+6. The JWT is stored in a session cookie.
+
+SSO is enabled by adding an `[sso]` section to the service config and
+registering the service as an SSO client in MCIAS.
+
+**Service config:**
+
+```toml
+[sso]
+redirect_uri = "https://<service>.svc.mcp.metacircular.net/sso/callback"
+```
+
+**MCIAS config** (add to the `[[sso_clients]]` list):
+
+```toml
+[[sso_clients]]
+client_id    = "<service>"
+redirect_uri = "https://<service>.svc.mcp.metacircular.net/sso/callback"
+service_name = "<service>"
+```
+
+The `redirect_uri` must match exactly between the service config and
+the MCIAS client registration.
+
+When `[sso].redirect_uri` is empty or absent, the service falls back to
+the direct credentials form.
+
+**Implementation:** Services use `mcdsl/sso` (v1.7.0+) which handles
+state management, CSRF-safe cookies, and the code exchange. The web
+server registers three routes:
+
+| Route | Purpose |
+|-------|---------|
+| `GET /login` | Renders landing page with "Sign in with MCIAS" button |
+| `GET /sso/redirect` | Sets state cookies, redirects to MCIAS |
+| `GET /sso/callback` | Validates state, exchanges code for JWT, sets session |
+
+### Direct Credentials (API / Fallback)
 
 1. Client sends credentials to the service's `POST /v1/auth/login`.
-2. Service forwards them to MCIAS via the client library
-   (`git.wntrmute.dev/mc/mcias/clients/go`).
+2. Service forwards them to MCIAS via `mcdsl/auth.Authenticator.Login()`.
 3. MCIAS validates and returns a bearer token.
 4. Subsequent requests include `Authorization: Bearer <token>`.
-5. Service validates tokens via MCIAS `ValidateToken()`, cached for 30s
+5. Service validates tokens via `ValidateToken()`, cached for 30s
    (keyed by SHA-256 of the token).
+
+Web UIs use this mode when SSO is not configured, presenting a
+username/password/TOTP form instead of the SSO button.
 
 ### Roles
 
@@ -685,10 +746,10 @@ For reference, these services are operational on the platform:
 | Service | Version | Node | Purpose |
 |---------|---------|------|---------|
 | MCIAS | v1.9.0 | (separate) | Identity and access |
-| Metacrypt | v1.3.1 | rift | Cryptographic service, PKI/CA |
+| Metacrypt | v1.4.1 | rift | Cryptographic service, PKI/CA |
 | MC-Proxy | v1.2.1 | rift | TLS proxy and router |
 | MCR | v1.2.1 | rift | Container registry |
 | MCNS | v1.1.1 | rift | Authoritative DNS |
 | MCDoc | v0.1.0 | rift | Documentation server |
-| MCQ | v0.2.0 | rift | Document review queue |
+| MCQ | v0.4.0 | rift | Document review queue |
 | MCP | v0.7.6 | rift | Control plane agent |
