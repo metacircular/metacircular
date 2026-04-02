@@ -9,8 +9,8 @@ the platform's internals.
 ## Platform Overview
 
 Metacircular is a multi-service infrastructure platform. Services are
-Go binaries running as containers on Linux nodes, managed by these core
-components:
+Go binaries running as containers across a fleet of Linux nodes,
+managed by these core components:
 
 | Component | Role |
 |-----------|------|
@@ -21,8 +21,27 @@ components:
 | **MCNS** (DNS) | Authoritative DNS for `*.svc.mcp.metacircular.net` |
 
 The operator workflow is: **build image → push to MCR → write service
-definition → deploy via MCP**. MCP handles port assignment, route
-registration, and container lifecycle.
+definition → deploy via MCP**. MCP handles port assignment, TLS cert
+provisioning, route registration, DNS registration, and container
+lifecycle.
+
+### Fleet Topology
+
+The platform runs across multiple nodes connected via Tailnet:
+
+| Node | Role | OS | Arch | Purpose |
+|------|------|----|------|---------|
+| **rift** | Compute + core infra | NixOS | amd64 | Runs most services (Metacrypt, MCR, MCNS, etc.) |
+| **svc** | Edge | Debian | amd64 | Public-facing mc-proxy, routes traffic over Tailnet to compute nodes |
+| **orion** | Compute | NixOS | amd64 | Provisioned, currently offline |
+
+**Node roles:**
+
+- **Compute nodes** (rift, orion, future RPis) run the full container
+  lifecycle via rootless Podman.
+- **Edge nodes** (svc) run mc-proxy for public traffic routing only.
+  The MCP agent on edge nodes manages mc-proxy routes but does not run
+  application containers.
 
 ---
 
@@ -34,7 +53,7 @@ registration, and container lifecycle.
 | Container engine | Docker or Podman (for building images) |
 | `mcp` CLI | Installed on the operator workstation |
 | MCR access | Credentials to push images to `mcr.svc.mcp.metacircular.net:8443` |
-| MCP agent | Running on the target node (currently `rift`) |
+| MCP agent | Running on the target node (`rift` for services, `svc` for edge routing) |
 | MCIAS account | For `mcp` CLI authentication to the agent |
 
 ---
@@ -320,14 +339,20 @@ recreates the containers.
 ### What Happens During Deploy
 
 1. Agent assigns a free host port (10000–60000) for each declared route.
-2. Agent starts containers with `$PORT` / `$PORT_<NAME>` environment
+2. For L7 routes, agent provisions a TLS certificate from Metacrypt CA
+   (via `POST /v1/engine/request`). Certs are written to
+   `/srv/mc-proxy/certs/<service>.pem` and `.key`. Existing valid certs
+   (more than 30 days from expiry) are reused.
+3. Agent starts containers with `$PORT` / `$PORT_<NAME>` environment
    variables set to the assigned ports.
-3. Agent registers routes with mc-proxy (hostname → `127.0.0.1:<port>`,
-   mode, TLS cert paths).
-4. Agent records the full state in its SQLite registry.
+4. Agent registers routes with mc-proxy via gRPC (hostname →
+   `<node-address>:<port>`, mode, TLS cert paths).
+5. Agent registers DNS entries in MCNS for
+   `<service>.svc.mcp.metacircular.net`.
+6. Agent records the full state in its SQLite registry.
 
 On stop (`mcp stop <service>`), the agent reverses the process: removes
-mc-proxy routes, then stops containers.
+DNS entries, removes mc-proxy routes, then stops containers.
 
 ---
 
@@ -747,9 +772,9 @@ For reference, these services are operational on the platform:
 |---------|---------|------|---------|
 | MCIAS | v1.9.0 | (separate) | Identity and access |
 | Metacrypt | v1.4.1 | rift | Cryptographic service, PKI/CA |
-| MC-Proxy | v1.2.1 | rift | TLS proxy and router |
+| MC-Proxy | v1.2.1 | rift, svc | TLS proxy and router (svc handles public edge) |
 | MCR | v1.2.1 | rift | Container registry |
 | MCNS | v1.1.1 | rift | Authoritative DNS |
 | MCDoc | v0.1.0 | rift | Documentation server |
 | MCQ | v0.4.0 | rift | Document review queue |
-| MCP | v0.7.6 | rift | Control plane agent |
+| MCP | v0.7.6 | rift, svc | Control plane agent |
