@@ -15,25 +15,59 @@ same as today on rift, but across the fleet.
 
 | Node | OS | Arch | Role |
 |------|----|------|------|
-| desktop (TBD) | NixOS | amd64 | Control plane -- runs master + MCIAS + MCNS |
-| rift | NixOS | amd64 | Compute -- application services |
-| orion | NixOS | amd64 | Compute |
-| hyperborea | Debian | arm64 | Compute (Raspberry Pi) |
+| rift | NixOS | amd64 | Master + worker -- runs mcp-master, core infra, and application services |
+| orion | NixOS | amd64 | Worker |
+| hyperborea | Debian | arm64 | Worker (Raspberry Pi) |
 | svc | Debian | amd64 | Edge -- mc-proxy for public traffic, no containers |
 
 Tailnet is the interconnect between all nodes. Public traffic enters via
-mc-proxy on svc, which forwards over Tailnet to compute nodes.
+mc-proxy on svc, which forwards over Tailnet to worker nodes.
+
+## Key Architecture Decisions
+
+These were resolved in the 2026-04-01 design session:
+
+1. **Rift is the master node.** No separate straylight machine. Core infra
+   stays on rift, which gains mcp-master alongside its existing agent.
+
+2. **Master-mediated coordination.** Agents never talk to each other. All
+   cross-node operations go through the master. Agents only dial the master
+   (for registration and heartbeats) and respond to master RPCs.
+
+3. **Agent self-registration.** Agents register with the master on startup
+   (name, role, address, arch). The master maintains the live node registry.
+   No static `[[nodes]]` config required except for bootstrap.
+
+4. **Heartbeats with fallback probe.** Agents push heartbeats every 30s
+   (with resource data). If the master misses 3 heartbeats (90s), it
+   actively probes the agent. Failed probe marks the node unhealthy.
+
+5. **Tier-based placement.** `tier = "core"` runs on the master node.
+   `tier = "worker"` (default) is auto-placed on a worker with capacity.
+   Explicit `node = "orion"` overrides tier for pinned services.
+
+6. **Two separate certs for public services.** Internal cert
+   (`svc.mcp.metacircular.net`) issued by worker agent. Public cert
+   (`metacircular.net`) issued by edge agent. Internal names never
+   appear on edge certs.
+
+7. **`public = true` on routes.** Public routes declare intent with a
+   boolean flag. The master assigns the route to an edge node (currently
+   always svc). No explicit `edge` field in service definitions.
 
 ## Components
 
 ### Master (`mcp-master`)
 
-Long-lived orchestrator on the control plane node. Responsibilities:
+Long-lived orchestrator on rift. Responsibilities:
 
 - Accept CLI commands and dispatch to the correct agent
+- Maintain node registry from agent self-registration
+- Place services based on tier, explicit node, and resource availability
+- Detect `public = true` routes and coordinate edge setup
+- Validate public hostnames against allowed domain list
 - Aggregate status from all agents (fleet-wide view)
-- Node selection when `node` is omitted from a service definition
-- Health-aware scheduling using agent heartbeat data
+- Probe agents on missed heartbeats
 
 The master is stateless in the durable sense -- it rebuilds its world view
 from agents on startup. If the master goes down, running services continue
@@ -54,50 +88,40 @@ inputs don't work as a universal update mechanism.
 - All nodes: binary at `/srv/mcp/mcp-agent`, systemd unit
   `mcp-agent.service`
 
-Upgrades must be coordinated -- new RPCs cause `Unimplemented` errors on
-old agents.
-
 ### Edge agents
 
 svc runs an agent but does NOT run containers. Its agent manages mc-proxy
-routing only: when the master provisions a service on a compute node, svc's
-agent updates mc-proxy routes to point at the compute node's Tailnet
-address.
+routing only: when the master tells it to set up an edge route, it
+provisions a TLS cert from Metacrypt and registers the route in its local
+mc-proxy via the gRPC admin API.
 
-### MCIAS migration
+## Migration Plan
 
-MCIAS moves from the svc VPS to the control plane node, running as an
-MCP-managed container with an independent lifecycle. Bootstrap order:
+### Phase 1: Agent on svc
+Deploy mcp-agent to svc. Verify with `mcp node list`.
 
-1. MCIAS image pre-staged or pulled unauthenticated
-2. MCIAS starts (L4 passthrough through mc-proxy -- manages its own TLS)
-3. All other services bootstrap after MCIAS is up
+### Phase 2: Edge routing RPCs
+Implement SetupEdgeRoute/RemoveEdgeRoute/ListEdgeRoutes on the agent.
+Test by calling directly from CLI.
 
-## Scheduling
+### Phase 3: Build mcp-master
+Core loop: registration, heartbeats, deploy routing, placement, edge
+coordination.
 
-Three placement modes, in order of specificity:
+### Phase 4: Agent registration and health
+Self-registration, heartbeat loop, master probe fallback, fleet status.
 
-1. `node = "rift"` -- explicit placement on a named node
-2. `node = "pi-pool"` -- master picks within a named cluster
-3. `node` omitted -- master picks any compute node with capacity
-
-Resource-aware placement via agent heartbeats (CPU, memory, disk). RPis
-with 4-8 GB RAM need resource tracking more than beefy servers.
-
-## Open Questions
-
-- **Control plane machine**: which desktop becomes the always-on node?
-- **Heartbeat model**: agent push vs. master poll?
-- **Cluster definition**: explicit pool config in master vs. node labels/tags?
-- **MCIAS migration timeline**: when to cut over from svc to control plane?
-- **Agent on svc**: what subset of agent RPCs does an edge-only agent need?
+### Phase 5: Cut over
+Point CLI at master, add tier fields to service defs, deploy agents to
+orion and hyperborea.
 
 ## What Phase E Does NOT Include
 
 These remain future work:
 
 - Auto-reconciliation (agent auto-restarting drifted containers)
-- Migration (snapshot streaming between nodes)
+- Live migration (snapshot streaming between nodes)
 - Web UI for fleet management
 - Observability / log aggregation
 - Object store
+- Multiple edge nodes / master HA
