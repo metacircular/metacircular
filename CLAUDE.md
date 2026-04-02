@@ -18,13 +18,15 @@ Metacircular is a multi-service personal infrastructure platform. This root repo
 | `mcdsl/` | Standard library — shared packages for auth, db, config, HTTP/gRPC servers, CSRF, snapshots | Go |
 | `mcdoc/` | Documentation server — renders markdown from Gitea, serves public docs via mc-proxy | Go |
 | `mcq/` | Document review queue — push docs for review, MCP server for Claude integration | Go |
-| `mcp/` | Control plane — operator-driven deployment, service registry, container lifecycle (master/agent) | Go |
-| `mcdeploy/` | Deployment CLI — deprecated, superseded by MCP (archived) | Go |
+| `mcp/` | Control plane — service deployment, container lifecycle, multi-node fleet management (CLI/agent, master in development) | Go |
 | `mcns/` | Networking service — custom Go DNS server, authoritative for internal zones | Go |
 | `ca/` | PKI infrastructure and secrets for dev/test (not source code, gitignored) | — |
 | `docs/` | Platform-wide documentation (architecture overview, deployment guide) | Markdown |
+| `log/` | Operational work logs and session notes | Markdown |
 
 Each subproject has its own `CLAUDE.md`, `ARCHITECTURE.md`, `Makefile`, and `go.mod`. When working in a subproject, read its own CLAUDE.md first.
+
+Some subprojects (mcat, mcdoc, mcq) may live at sibling paths (e.g., `../mcq/`) rather than as subdirectories, depending on workspace layout.
 
 ## Service Dependencies
 
