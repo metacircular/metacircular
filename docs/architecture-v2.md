@@ -270,9 +270,47 @@ Network-level restriction (configured in Tailscale admin, not MCP):
 
 ---
 
+## Node Infrastructure vs Deployed Services
+
+Two categories of software run on the platform:
+
+**Node infrastructure** runs on every node by definition, not because
+the master placed it. Managed by systemd, outside the master's
+deploy/undeploy/placement model:
+
+| Component | Present on | Managed by |
+|-----------|-----------|------------|
+| mcp-agent | all nodes | systemd; upgraded via `mcp agent upgrade` |
+| mc-proxy | all nodes | systemd; upgraded via binary replacement |
+
+The master interacts with node infrastructure (calls agent RPCs,
+manipulates mc-proxy routes) but does not deploy or place it. Node
+infrastructure is not tracked in the `placements` table.
+
+**Deployed services** are placed by the master on specific nodes.
+Tracked in the placements table, managed through `mcp deploy/undeploy/
+migrate`.
+
+### Snapshot Paths
+
+Node infrastructure is snapshotted per-node (the same component exists
+on multiple nodes with different data):
+
+```
+/srv/mcp-master/snapshots/
+  mc-proxy/rift/2026-04-02T00:00:00Z.tar.zst
+  mc-proxy/svc/2026-04-02T00:00:00Z.tar.zst
+  mcp-agent/rift/...
+  mcp-agent/svc/...
+  mcq/2026-04-02T00:00:00Z.tar.zst       # deployed service — single node
+  mcias/2026-04-02T00:00:00Z.tar.zst
+```
+
+---
+
 ## Service Placement
 
-Services declare a **tier** that determines where they run:
+Deployed services declare a **tier** that determines where they run:
 
 - **`tier = "core"`** — scheduled on the master node. Used for platform
   infrastructure: MCIAS, metacrypt, mcr, mcns.
@@ -1049,11 +1087,16 @@ Snapshots are stored as flat files on the master node:
 
 ```
 /srv/mcp-master/snapshots/
-  mcq/
-    2026-04-01T00:00:00Z.tar.zst
-  mcias/
-    2026-04-01T00:00:00Z.tar.zst
+  mcq/2026-04-01T00:00:00Z.tar.zst            # deployed service
+  mcias/2026-04-01T00:00:00Z.tar.zst
+  mc-proxy/rift/2026-04-01T00:00:00Z.tar.zst   # node infra — per-node
+  mc-proxy/svc/2026-04-01T00:00:00Z.tar.zst
 ```
+
+Deployed services use `<service>/<timestamp>.tar.zst`. Node
+infrastructure uses `<service>/<node>/<timestamp>.tar.zst` to avoid
+collisions between instances on different nodes (see "Node
+Infrastructure vs Deployed Services").
 
 Format: tar.zst (tar archive with zstandard compression). One file per
 snapshot, named by UTC timestamp.
