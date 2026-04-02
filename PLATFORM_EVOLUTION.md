@@ -5,7 +5,7 @@ from its current manually-wired state to fully declarative deployment.
 It is a living design document — not a spec, not a commitment, but a
 record of where we are, where we want to be, and what's between.
 
-Last updated: 2026-03-28 (Phases A + B + C + D complete)
+Last updated: 2026-04-02 (Phases A–D complete, Phase E in progress)
 
 ---
 
@@ -324,9 +324,11 @@ mcproxyctl, TOML editing, cert generation, or DNS zone editing.
 
 ### Immediate Next Steps
 
-1. **Phase E: Multi-node agent management** — see below.
-2. **mcdoc implementation** — fully designed, no platform evolution
-   dependency. Deployable now with the new route system.
+1. **Phase E: Multi-node agent management** — see below. See
+   `docs/phase-e-plan.md` for the detailed Phase E design and
+   `docs/architecture-v2.md` for the v2 master/agent architecture.
+2. **mcdoc** — deployed (v0.1.0 on rift). Serves rendered markdown
+   from Gitea via mc-proxy.
 
 #### 10. Agent Binary Location Convention
 
@@ -380,8 +382,9 @@ Different for NixOS vs Debian.
 | Node | OS | Arch | Status |
 |------|----|------|--------|
 | rift | NixOS | amd64 | Operational, single MCP agent |
-| hyperborea | Debian (RPi) | arm64 | Online, needs agent provisioning |
+| hyperborea | Debian (RPi) | arm64 | Online, agent provisioning planned |
 | svc | Debian | amd64 | Runs MCIAS, needs agent for public edge services |
+| orion | NixOS | amd64 | Provisioned, offline for maintenance |
 
 ---
 
