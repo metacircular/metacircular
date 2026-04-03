@@ -217,13 +217,14 @@ ownership changes.
 
 ## Action Items
 
-- [ ] Write disaster recovery runbook (separate document)
-- [ ] Add fallback DNS resolvers to NixOS config (1.1.1.1, 8.8.8.8)
+- [x] Write disaster recovery runbook → `docs/disaster-recovery.md`
+- [x] Add fallback DNS resolvers to NixOS config → all nodes now have
+      1.1.1.1 and 8.8.8.8 as fallbacks after MCNS
 - [ ] Implement `mcp agent recover` command (recreate containers from
       registry)
-- [ ] Implement boot sequencing in the agent (Phase 3+ architecture)
-- [ ] Investigate modernc.org/sqlite `fchmod` workaround for rootless
-      podman
+- [ ] Implement boot sequencing in the agent (Phase 4+ architecture)
+- [x] Fix modernc.org/sqlite `fchmod` → was our own `os.Chmod` in
+      `mcdsl/db/db.go`, not sqlite. Made best-effort in mcdsl v1.8.0.
 - [ ] Add multi-address support to node config (Tailnet IP + LAN IP
       + hostname)
-- [ ] Revert mcp UID to a stable value and never change it again
+- [x] Stabilize mcp UID → pinned at 850 with NEVER CHANGE comment
