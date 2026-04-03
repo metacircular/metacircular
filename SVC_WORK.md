@@ -80,9 +80,56 @@ mc-proxy v1.2.1-2-g82fce41-dirty
     l7 git.metacircular.net → 127.0.0.1:3000
 ```
 
+## Agent Cert Reissue (2026-04-02)
+
+Both agent certs reissued with comprehensive SANs:
+
+**Rift agent** (`/srv/mcp/certs/cert.pem`):
+- DNS: `rift.scylla-hammerhead.ts.net`, `mcp-agent.svc.mcp.metacircular.net`
+- IP: `100.95.252.120`, `192.168.88.181`
+
+**Svc agent** (`/srv/mcp/certs/cert.pem`):
+- DNS: `svc.scylla-hammerhead.ts.net`, `svc.svc.mcp.metacircular.net`
+- IP: `100.106.232.4`
+
+Both agents upgraded to v0.10.0 (Phase 2 edge routing RPCs + v2 proto fields).
+
+## MCP Master Deployment (2026-04-02)
+
+**Binary**: `/srv/mcp-master/mcp-master` (v0.10.0) on rift
+**Config**: `/srv/mcp-master/mcp-master.toml`
+**Database**: `/srv/mcp-master/master.db`
+**Certs**: `/srv/mcp-master/certs/{cert,key,ca}.pem`
+  - SAN: `rift.scylla-hammerhead.ts.net`, `mcp-master.svc.mcp.metacircular.net`, IP `100.95.252.120`
+**Service token**: `/srv/mcp-master/mcias-token` (MCIAS identity: `mcp-master`, expires 2027-04-03)
+**Listen**: `100.95.252.120:9555`
+**Bootstrap nodes**: rift (master), svc (edge)
+
+**Status**: Running via `doas` (ad-hoc). NixOS read-only /etc prevents
+direct systemd unit creation — needs NixOS config update for persistent
+service.
+
+**Tested**:
+- `mcp deploy mcq` → master places on rift, forwards to agent ✓
+- `mcp undeploy mcq` → master forwards to agent, cleans up placement ✓
+- `mcp ps` → fleet-wide status through agents ✓
+- `mcp node list` → both nodes visible with versions ✓
+
+## CLI Config Changes (vade)
+
+Updated `~/.config/mcp/mcp.toml`:
+- Added `[master]` section: `address = "rift.scylla-hammerhead.ts.net:9555"`
+- All node addresses switched to Tailscale DNS names
+- Added CA cert path
+
 ## Known Limitations
 - ~~mc-proxy socket permissions will reset on restart~~ **FIXED**: mc-proxy
   now creates the socket with 0660 (was 0600). Committed to mc-proxy master.
+- Master runs ad-hoc via `doas` on rift. Needs NixOS systemd config for
+  persistent service (rift has read-only /etc).
+- DNS registration not configured on master (MCNS config omitted for now).
+- Edge routing not yet tested end-to-end through master (svc cert provisioning
+  not configured).
 - The TLS cert was issued from the local CA directly, not via Metacrypt API.
   Should be re-issued via Metacrypt once the agent has cert provisioning.
 - Container runtime is set to `podman` but podman is not installed on svc
