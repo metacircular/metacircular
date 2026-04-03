@@ -135,3 +135,24 @@ Updated `~/.config/mcp/mcp.toml`:
 - Container runtime is set to `podman` but podman is not installed on svc
   (Docker is). Edge agents don't run containers so this is benign.
 - Metacrypt and MCNS integrations not configured (not needed for edge role).
+
+## Edge Routing E2E Test (2026-04-02)
+
+Full edge routing flow tested successfully through the master:
+
+1. Added `public = true` route for `mcq.metacircular.net` to mcq service def
+2. `mcp deploy mcq` → master placed on rift, deployed, registered DNS, set up edge route on svc
+3. Svc agent provisioned TLS cert from Metacrypt (expires 2026-06-28)
+4. mc-proxy route created: `mcq.metacircular.net → 100.95.252.120:8443` (re-encrypt)
+5. Edge route persisted in both master DB and svc agent registry
+
+**Fix required**: `RouteDef` in servicedef.go was missing `Public` field —
+TOML `public = true` was silently dropped. Fixed in v0.10.2 along with
+`Tier` field and relaxed `Node` validation.
+
+## DNS Registration Working (2026-04-02)
+
+Master registers Tailnet IPs in MCNS (not LAN IPs). Fix in v0.10.1
+resolves Tailscale DNS names to IPs before passing to MCNS.
+
+`mcq.svc.mcp.metacircular.net → 100.95.252.120` (Tailnet IP) ✓
