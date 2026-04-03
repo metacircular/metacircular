@@ -76,9 +76,13 @@ DNS config pointed to MCNS. Tailscale itself remained functional
 (its coordination servers are external), but hostname resolution via
 Tailscale DNS names failed.
 
-The operator turned off Tailscale on vade (the workstation) thinking
-Tailscale was the problem. This broke connectivity to rift entirely
-since the MCP agent binds to the Tailnet IP only (`100.95.252.120:9444`).
+The operator turned off Tailscale on vade (the workstation) because
+Tailscale's MagicDNS was routing ALL DNS queries through the broken
+MCNS resolver — external services including Claude Code and Gitea
+were unreachable. Disabling Tailscale was the only way to restore
+external DNS resolution. However, this also broke connectivity to
+rift since the MCP agent binds to the Tailnet IP only
+(`100.95.252.120:9444`).
 
 ### Recovery
 
@@ -205,9 +209,11 @@ ownership changes.
    was no tool to translate a service definition into a `podman run`
    command without the full MCP deploy pipeline.
 
-6. **Tailscale is not the problem when DNS breaks.** Tailscale's
-   control plane is external. Turning off Tailscale makes things worse,
-   not better, because the agents bind to Tailnet IPs.
+6. **Tailscale MagicDNS amplifies DNS failures.** When MCNS is down
+   and MagicDNS routes through it, ALL DNS breaks — not just internal
+   names. Disabling Tailscale restores external DNS but loses Tailnet
+   connectivity. The fix is fallback resolvers that bypass MCNS, not
+   disabling Tailscale.
 
 ## Action Items
 
