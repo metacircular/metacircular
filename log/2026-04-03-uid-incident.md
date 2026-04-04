@@ -220,11 +220,12 @@ ownership changes.
 - [x] Write disaster recovery runbook → `docs/disaster-recovery.md`
 - [x] Add fallback DNS resolvers to NixOS config → all nodes now have
       1.1.1.1 and 8.8.8.8 as fallbacks after MCNS
-- [ ] Implement `mcp agent recover` command (recreate containers from
-      registry)
-- [ ] Implement boot sequencing in the agent (Phase 4+ architecture)
+- [x] Implement `mcp agent recover` command → MCP v0.10.5. Recreates
+      containers from the agent registry when podman DB is lost.
+- [x] Implement boot sequencing in the agent → MCP v0.10.6.
+      [[boot.sequence]] config with per-stage health checks.
 - [x] Fix modernc.org/sqlite `fchmod` → was our own `os.Chmod` in
       `mcdsl/db/db.go`, not sqlite. Made best-effort in mcdsl v1.8.0.
-- [ ] Add multi-address support to node config (Tailnet IP + LAN IP
-      + hostname)
+- [x] Add multi-address support to node config → MCP v0.10.4.
+      Fallback addresses tried in order when primary fails.
 - [x] Stabilize mcp UID → pinned at 850 with NEVER CHANGE comment
