@@ -184,7 +184,7 @@ require git.wntrmute.dev/mc/mcdsl v1.2.0
 Every repository has a Makefile with these standard targets:
 
 ```makefile
-.PHONY: build test vet lint proto-lint clean docker all
+.PHONY: build test vet lint proto-lint clean docker push all
 
 LDFLAGS := -trimpath -ldflags="-s -w -X main.version=$(shell git describe --tags --always --dirty)"
 
@@ -218,6 +218,9 @@ clean:
 docker:
 	docker build -t <service> -f Dockerfile.api .
 
+push: docker
+	docker push $(MCR)/<service>:$(VERSION)
+
 all: vet lint test <service>
 ```
 
@@ -230,6 +233,7 @@ all: vet lint test <service>
 | `test` | Every change | Yes |
 | `proto-lint` | Any proto change | Yes |
 | `proto` | After editing `.proto` files | No (manual) |
+| `push` | After building container image | No (manual) |
 | `all` | Pre-push verification | Yes |
 
 The `all` target is the CI pipeline: `vet → lint → test → build`. If any

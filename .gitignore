@@ -11,4 +11,12 @@
 /mcns
 /mcp
 /mcdeploy
+/mcdoc
 
+
+# Local service configs and tool settings; these have held credentials.
+/mcat.toml
+/mcq.toml
+/mcr.toml
+/metacrypt.toml
+/.claude/

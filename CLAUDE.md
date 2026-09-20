@@ -17,7 +17,6 @@ Metacircular is a multi-service personal infrastructure platform. This root repo
 | `mcat/` | MCIAS login policy tester — lightweight web app to test and audit login policies | Go |
 | `mcdsl/` | Standard library — shared packages for auth, db, config, HTTP/gRPC servers, CSRF, snapshots | Go |
 | `mcdoc/` | Documentation server — renders markdown from Gitea, serves public docs via mc-proxy | Go |
-| `mcq/` | Document review queue — push docs for review, MCP server for Claude integration | Go |
 | `mcp/` | Control plane — service deployment, container lifecycle, multi-node fleet management (CLI/agent, master in development) | Go |
 | `mcns/` | Networking service — custom Go DNS server, authoritative for internal zones | Go |
 | `ca/` | PKI infrastructure and secrets for dev/test (not source code, gitignored) | — |
@@ -26,7 +25,7 @@ Metacircular is a multi-service personal infrastructure platform. This root repo
 
 Each subproject has its own `CLAUDE.md`, `ARCHITECTURE.md`, `Makefile`, and `go.mod`. When working in a subproject, read its own CLAUDE.md first.
 
-Some subprojects (mcat, mcdoc, mcq) may live at sibling paths (e.g., `../mcq/`) rather than as subdirectories, depending on workspace layout.
+Some subprojects live at sibling paths rather than as subdirectories. For example, `mcq` (document review queue) lives at `../mcq/`. This repository contains only core infrastructure services.
 
 ## Service Dependencies
 
@@ -38,7 +37,6 @@ mcias (standalone — no MCIAS dependency)
   ├── mc-proxy (uses MCIAS for admin auth)
   ├── mcr (uses MCIAS for auth + policy)
   ├── mcdoc (public, no MCIAS — fetches docs from Gitea)
-  ├── mcq (uses MCIAS for auth; document review queue)
   ├── mcp (uses MCIAS for auth; orchestrates deployment and lifecycle)
   ├── mcns (uses MCIAS for auth; authoritative DNS for internal zones)
   └── mcat (tests MCIAS login policies)
@@ -56,6 +54,7 @@ make proto       # regenerate gRPC code from .proto files
 make proto-lint  # buf lint + buf breaking
 make devserver   # build and run locally against srv/ config
 make docker      # build container image
+make push        # push container image to MCR
 make clean       # remove binaries
 ```
 
