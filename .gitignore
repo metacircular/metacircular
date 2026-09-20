@@ -20,3 +20,6 @@
 /mcr.toml
 /metacrypt.toml
 /.claude/
+
+# V1/V2 source checkouts, archived 2026-09-20. Each is its own git repo.
+/archive/

@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **2026-09-20 — V1/V2 are archived.** The platform was parked and is being
+> redesigned as V3 (see `docs/v3/`). The source repos described below now live
+> under `archive/v2/` (each still its own git repo, gitignored here). Paths in
+> this document that name a component directory are relative to `archive/v2/`.
+
 ## Overview
 
 Metacircular is a multi-service personal infrastructure platform. This root repository is a workspace container — each subdirectory is a separate Git repo (gitignored here). The authoritative platform-wide standards live in `engineering-standards.md`.

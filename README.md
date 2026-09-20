@@ -15,6 +15,11 @@ All services are written in Go and follow shared
 [engineering standards](engineering-standards.md). Full platform documentation
 lives in [docs/metacircular.md](docs/metacircular.md).
 
+> **2026-09-20 — V1/V2 are archived.** The platform was parked and is being
+> redesigned as V3 (see `docs/v3/`). The source repos described below now live
+> under `archive/v2/` (each still its own git repo, gitignored here). Paths in
+> this document that name a component directory are relative to `archive/v2/`.
+
 ## Components
 
 | Component | Purpose | Status |
